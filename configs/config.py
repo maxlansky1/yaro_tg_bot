@@ -1,61 +1,95 @@
-"""
-Модуль конфигурации приложения.
-
-Загружает переменные окружения из файла .env и системных переменных,
-используя библиотеку `environs`, и предоставляет централизованный доступ
-к настройкам через класс `Config`.
-"""
-
+import sys
+from environs import Env
 from pathlib import Path
 
-from environs import Env
+# Добавляем src в путь импорта
+sys.path.append(str(Path(__file__).parent.parent / "src"))
 
+# Импортируем кастомный логгер
+from src.utils.logger import get_logger
+
+# Инициализация и чтение переменных окружения
 env = Env()
-env.read_env()  # читает из .env и системных переменных
+env.read_env()  # Читает из .env и системных переменных
 
+# Настройка логирования
+logger = get_logger(__name__)  # Используем кастомный логгер
+
+# === Заголовки таблицы в Google Sheets ===
+HEADERS = [
+    "id", "full_name", "username", "language_code",
+    "is_premium", "is_bot", "link_name", "link", "creator_id",
+    "is_primary", "is_revoked", "expire_date", "member_limit",
+    "pending_join_request_count", "via_join_request", "join_request_date",
+    "join_method", "join_date", "status", "last_online", "registration_date"
+]
+"""
+Заголовки столбцов в Google Таблице для хранения информации о пользователях.
+
+Полное описание каждого поля приведено выше в комментариях к исходному файлу.
+"""
 
 class Config:
+
+    # --- Пути и директории ---
+    BASE_DIR = Path(__file__).parent.parent
     """
-    Глобальная конфигурация приложения.
-
-    Все параметры считываются из переменных окружения и используются
-    для настройки различных аспектов проекта: базы данных, кэша, API,
-    телеграм-бота, email, логирования, безопасности и т.д.
+    Корневая директория проекта.
     """
-
-    # --- Общие настройки --- (имя приложения, уровень логирования, путь к корню проекта, часовой пояс, кол-во воркеров)
-    APP_NAME: str = env.str("APP_NAME", "MyApp")
-    LOG_LEVEL: str = env.str("LOG_LEVEL", "INFO")
-    PROJECT_ROOT: Path = Path(__file__).parent.parent
-    TIMEZONE: str = env.str("TIMEZONE", "UTC")
-    MAX_WORKERS: int = env.int("MAX_WORKERS", 5)
-
-    # --- Базовые директории проекта ---
-    GITHUB_WORKFLOWS_DIR = PROJECT_ROOT / ".github" / "workflows"
-    CONFIGS_DIR: Path = PROJECT_ROOT / "configs"
-    DIAGRAMS_DIR: Path = PROJECT_ROOT / "diagrams"
-    DOCS_DIR: Path = PROJECT_ROOT / "docs"
-    LOGS_DIR: Path = PROJECT_ROOT / "logs"
-    NOTES_DIR: Path = PROJECT_ROOT / "notes"
-    SRC_DIR: Path = PROJECT_ROOT / "src"
-    TESTS_DIR: Path = PROJECT_ROOT / "tests"
-    TOOLS_DIR: Path = PROJECT_ROOT / "tools"
-
-    # --- Docker ---
-    DOCKER_ENV: str = env.str("DOCKER_ENV", "development")
-    DOCKER_IMAGE_NAME: str = env.str("DOCKER_IMAGE_NAME", "myapp-image")
-    DOCKER_CONTAINER_NAME: str = env.str("DOCKER_CONTAINER_NAME", "myapp-container")
 
     # --- Telegram Bot ---
-    TELEGRAM_BOT_TOKEN: str = env.str("TELEGRAM_BOT_TOKEN", None)
-    TELEGRAM_CHAT_ID: str = env.str("TELEGRAM_CHAT_ID", None)
+    TELEGRAM_BOT_TOKEN: str = env.str("TELEGRAM_BOT_TOKEN")
+    if not TELEGRAM_BOT_TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN не установлен!")
+        raise ValueError("Отсутствует TELEGRAM_BOT_TOKEN.")
+    
+    TELEGRAM_CHANNEL_IDS: list[int] = [int(x) for x in env.list("TELEGRAM_CHANNEL_IDS", [])]
+    if not TELEGRAM_CHANNEL_IDS:
+        logger.error("TELEGRAM_CHANNEL_IDS не указаны!")
+        raise ValueError("Отсутствуют TELEGRAM_CHANNEL_IDS.")
+    
     TELEGRAM_ADMIN_IDS: list[int] = [int(x) for x in env.list("TELEGRAM_ADMIN_IDS", [])]
+    if not TELEGRAM_ADMIN_IDS:
+        logger.error("TELEGRAM_ADMIN_IDS не указаны!")
+        raise ValueError("Отсутствуют TELEGRAM_ADMIN_IDS.")
+    
+    # --- Google Sheets ---
+    GOOGLE_CREDS_JSON = BASE_DIR / env.str("GOOGLE_CREDS_JSON")
+    if not GOOGLE_CREDS_JSON:
+        logger.error("GOOGLE_CREDS_JSON не указан!")
+        raise ValueError("Отсутствует GOOGLE_CREDS_JSON.")
+    
+    SPREADSHEET_ID: str = env.str("SPREADSHEET_ID")
+    if not SPREADSHEET_ID:
+        logger.error("Не указан SPREADSHEET_ID!")
+        raise ValueError("Отсутствует SPREADSHEET_ID.")
+    
+    GOOGLE_DRIVE_PATH: str = env.str("GOOGLE_DRIVE_PATH", "/content/drive/MyDrive/YARO")
+    
+    # --- Логирование ---
+    LOG_LEVEL: str = env.str("LOG_LEVEL", "INFO").upper()
 
-    # --- Google API ---
-    GOOGLE_API_KEY: str = env.str("GOOGLE_API_KEY", None)
-    GOOGLE_CLIENT_ID: str = env.str("GOOGLE_CLIENT_ID", None)
-    GOOGLE_CLIENT_SECRET: str = env.str("GOOGLE_CLIENT_SECRET", None)
-    GOOGLE_REDIRECT_URI: str = env.str("GOOGLE_REDIRECT_URI", None)
+    @classmethod
+    def check_credentials(cls):
+        """
+        Проверка наличия обязательных переменных окружения.
+        """
+        required_vars = {
+            "BOT_TOKEN": cls.TELEGRAM_BOT_TOKEN,
+            "SPREADSHEET_ID": cls.SPREADSHEET_ID,
+            "CHANNEL_IDS": cls.TELEGRAM_CHANNEL_IDS or None,
+        }
 
+        missing = [var_name for var_name, value in required_vars.items() if not value]
+        if missing:
+            error_msg = f"❌ Отсутствуют обязательные переменные окружения: {', '.join(missing)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        logger.info("✅ Все обязательные переменные окружения успешно загружены.")
 
+# Инициализация конфигурации
+Config.check_credentials()
+
+# Переменные могут быть использованы в приложении:
 config = Config()

@@ -3,6 +3,7 @@ colorama
 
 # работа с .env
 environs
+python-dotenv
 
 # Поддержка markdown
 myst-parser
@@ -21,3 +22,17 @@ sphinx-togglebutton
 
 # Библиотека для управления проектами
 copier
+
+# Telegram
+aiogram==3.*
+asyncio
+magic-filter
+
+# работа с гугл таблицами
+gspread 
+oauth2client
+
+#Прочее
+tenacity
+pandas
+openpyxl
