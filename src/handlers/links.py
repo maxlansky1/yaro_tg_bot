@@ -6,18 +6,18 @@
 - /revoke_link - отозвать ранее созданную ссылку
 """
 
-from utils.logger import get_logger
 from datetime import datetime, timedelta
 from html import escape
 
 from aiogram import Bot
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import CallbackQuery, InlineKeyboardButton, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from configs.config import Config
 from states.state import CreateLinkStates
 from utils.GoogleSheets import GoogleSheetsManager
+from utils.logger import get_logger
 
 # === Запускаем логирование ===
 logger = get_logger(__name__)
@@ -33,7 +33,9 @@ async def cmd_create_link(message: Message, bot: Bot, state: FSMContext):
     """
 
     if message.from_user.id not in Config.TELEGRAM_ADMIN_IDS:
-        await message.answer("⛔ У вас нет прав для выполнения этой команды. Обратитесь к администратору")
+        await message.answer(
+            "⛔ У вас нет прав для выполнения этой команды. Обратитесь к администратору"
+        )
         return
 
     try:
@@ -44,12 +46,21 @@ async def cmd_create_link(message: Message, bot: Bot, state: FSMContext):
                 chat = await bot.get_chat(channel_id)
                 title = chat.title or str(channel_id)
             except Exception as e:
-                logger.warning(f"Не удалось получить информацию о канале {channel_id}: {e}")
+                logger.warning(
+                    f"Не удалось получить информацию о канале {channel_id}: {e}"
+                )
                 title = str(channel_id)
-            kb.add(InlineKeyboardButton(text=title, callback_data=f"select_channel:{channel_id}"))
+            kb.add(
+                InlineKeyboardButton(
+                    text=title, callback_data=f"select_channel:{channel_id}"
+                )
+            )
 
         await state.set_state(CreateLinkStates.waiting_for_channel)
-        await message.answer("📢 Выберите канал, для которого создать ссылку:", reply_markup=kb.as_markup())
+        await message.answer(
+            "📢 Выберите канал, для которого создать ссылку:",
+            reply_markup=kb.as_markup(),
+        )
 
     except Exception as e:
         logger.error(f"Ошибка при выборе канала: {e}", exc_info=True)
@@ -67,7 +78,9 @@ async def handle_channel_selected(callback: CallbackQuery, state: FSMContext):
         await state.update_data(selected_channel=channel_id)
         await state.set_state(CreateLinkStates.waiting_for_link_name)
 
-        await callback.message.edit_text("📝 Введите имя для новой пригласительной ссылки:")
+        await callback.message.edit_text(
+            "📝 Введите имя для новой пригласительной ссылки:"
+        )
         await callback.answer()
 
     except Exception as e:
@@ -75,7 +88,9 @@ async def handle_channel_selected(callback: CallbackQuery, state: FSMContext):
         await callback.answer("⚠️ Ошибка при выборе канала", show_alert=True)
 
 
-async def process_link_name(message: Message, state: FSMContext, bot: Bot, gsheets: GoogleSheetsManager):
+async def process_link_name(
+    message: Message, state: FSMContext, bot: Bot, gsheets: GoogleSheetsManager
+):
     """
     Обрабатывает введённое пользователем имя ссылки.
 
@@ -103,9 +118,7 @@ async def process_link_name(message: Message, state: FSMContext, bot: Bot, gshee
         # Создаём пригласительную ссылку с заданным периодом действия
         expire_date = datetime.now() + timedelta(days=14)
         invite_link = await bot.create_chat_invite_link(
-            chat_id=channel_id,
-            name=campaign_name,
-            expire_date=expire_date
+            chat_id=channel_id, name=campaign_name, expire_date=expire_date
         )
 
         # Подготавливаем данные для таблицы
@@ -115,7 +128,7 @@ async def process_link_name(message: Message, state: FSMContext, bot: Bot, gshee
             "creator_id": message.from_user.id,
             "channel_name": channel_name,
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "is_revoked": "FALSE"
+            "is_revoked": "FALSE",
         }
 
         # Сохраняем в таблицу
@@ -129,7 +142,9 @@ async def process_link_name(message: Message, state: FSMContext, bot: Bot, gshee
             f"🔗 <b>Ссылка:</b> <code>{escape(invite_link.invite_link)}</code>"
         )
         await message.answer(response)
-        logger.info(f"Создана ссылка для канала {channel_id} ({channel_name}): {campaign_name}")
+        logger.info(
+            f"Создана ссылка для канала {channel_id} ({channel_name}): {campaign_name}"
+        )
 
     except Exception as e:
         logger.error(f"Ошибка при создании ссылки: {e}", exc_info=True)

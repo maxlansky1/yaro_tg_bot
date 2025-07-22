@@ -5,31 +5,26 @@
 настройку FSM состояний, запуск бота.
 """
 
-from utils.logger import get_logger
 import asyncio
 from functools import partial
 
 from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message
-from aiogram.filters import Command, CommandStart
-from aiogram.enums import ParseMode, ChatMemberStatus
-from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ChatMemberStatus, ParseMode
+from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import Message
 
 from configs.config import Config
-
-from handlers.subscribers import handle_new_member, handle_unsubscribed_member
-from handlers.links import cmd_create_link, process_link_name
 from handlers.buttons import buttons_router
-
-from utils.GoogleSheets import GoogleSheetsManager
-from utils.backup import GoogleTableBackup
-
+from handlers.links import cmd_create_link, process_link_name
+from handlers.subscribers import handle_new_member, handle_unsubscribed_member
 from keyboards.keyboards import main_menu_keyboard
-
 from states.state import CreateLinkStates
-
+from utils.backup import GoogleTableBackup
+from utils.GoogleSheets import GoogleSheetsManager
+from utils.logger import get_logger
 
 # === Запускаем логирование ===
 logger = get_logger(__name__)
@@ -40,7 +35,7 @@ def init_bot(gsheets: GoogleSheetsManager) -> Bot:
     """Создаёт и возвращает экземпляр бота с настроенными свойствами"""
     bot = Bot(
         token=Config.TELEGRAM_BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     bot.gsheets = gsheets  # Добавляем gsheets как атрибут бота
     return bot
@@ -65,18 +60,22 @@ def init_gsheets() -> GoogleSheetsManager:
 
 
 # === Регистрация обработчиков подписки/отписки ===
-def register_chat_member_handlers(dp: Dispatcher, bot: Bot, gsheets: GoogleSheetsManager):
+def register_chat_member_handlers(
+    dp: Dispatcher, bot: Bot, gsheets: GoogleSheetsManager
+):
     """Регистрирует обработчики событий изменения состава чата"""
     dp.chat_member.register(
         partial(handle_new_member, bot=bot, gsheets=gsheets),
         F.old_chat_member.status.in_([ChatMemberStatus.LEFT, ChatMemberStatus.KICKED]),
-        F.new_chat_member.status == ChatMemberStatus.MEMBER
+        F.new_chat_member.status == ChatMemberStatus.MEMBER,
     )
 
     dp.chat_member.register(
         partial(handle_unsubscribed_member, bot=bot, gsheets=gsheets),
-        F.old_chat_member.status.in_([ChatMemberStatus.MEMBER, ChatMemberStatus.RESTRICTED]),
-        F.new_chat_member.status.in_([ChatMemberStatus.LEFT, ChatMemberStatus.KICKED])
+        F.old_chat_member.status.in_(
+            [ChatMemberStatus.MEMBER, ChatMemberStatus.RESTRICTED]
+        ),
+        F.new_chat_member.status.in_([ChatMemberStatus.LEFT, ChatMemberStatus.KICKED]),
     )
     logger.info("✅ Обработчики участников чата зарегистрированы")
 
@@ -92,7 +91,7 @@ def register_command_handlers(dp: Dispatcher):
             if message.from_user.id in Config.TELEGRAM_ADMIN_IDS:
                 await message.answer(
                     "👋 Приветствую, администратор! Выберите действие:",
-                    reply_markup=main_menu_keyboard
+                    reply_markup=main_menu_keyboard,
                 )
             else:
                 await message.answer("⛔ У вас нет доступа к этому боту")

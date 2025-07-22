@@ -3,18 +3,13 @@
 Содержит хэндлеры для работы с текстовыми командами и inline-кнопками.
 """
 
-from utils.logger import get_logger
-from typing import Optional
-from html import escape
-
-from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, Message
 
 from configs.config import Config
 from handlers.links import cmd_create_link, handle_channel_selected
-from utils.GoogleSheets import GoogleSheetsManager
-
+from utils.logger import get_logger
 
 # === Запускаем логирование ===
 logger = get_logger(__name__)
@@ -52,8 +47,12 @@ async def handle_open_sheet_button(message: Message):
             await message.answer("⛔ У вас нет доступа")
             return
 
-        sheet_url = f"https://docs.google.com/spreadsheets/d/ {Config.SPREADSHEET_ID}/edit"
-        await message.answer(f"📎 [Открыть Google Таблицу]({sheet_url})", parse_mode="Markdown")
+        sheet_url = (
+            f"https://docs.google.com/spreadsheets/d/ {Config.SPREADSHEET_ID}/edit"
+        )
+        await message.answer(
+            f"📎 [Открыть Google Таблицу]({sheet_url})", parse_mode="Markdown"
+        )
 
     except Exception as e:
         logger.error(f"Ошибка при открытии таблицы: {e}", exc_info=True)

@@ -6,19 +6,18 @@
 Файлы не сохраняются на диск — только во временной памяти.
 """
 
-from utils.logger import get_logger
 import asyncio
 from datetime import datetime
 from io import BytesIO
 from typing import Optional
 
 import pandas as pd
-import gspread
 from aiogram import Bot
 from aiogram.types import BufferedInputFile
+
 from configs.config import Config
 from utils.GoogleSheets import GoogleSheetsManager
-
+from utils.logger import get_logger
 
 # === Запускаем логирование ===
 logger = get_logger(__name__)
@@ -27,7 +26,7 @@ logger = get_logger(__name__)
 class GoogleTableBackup:
     def __init__(self, bot: Bot):
         self.bot = bot
-        self.backup_interval_seconds = 60*60  # каждый час
+        self.backup_interval_seconds = 60 * 60  # каждый час
         self.gsheets = GoogleSheetsManager()
         self.gc = self.gsheets.client  # Уже подключён через GoogleSheetsManager
 
@@ -40,11 +39,13 @@ class GoogleTableBackup:
 
             spreadsheet = self.gc.open_by_key(Config.SPREADSHEET_ID)
 
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            with pd.ExcelWriter(output, engine="openpyxl") as writer:
                 for sheet in spreadsheet.worksheets():
                     data = sheet.get_all_records()
                     df = pd.DataFrame(data)
-                    df.to_excel(writer, index=False, sheet_name=sheet.title[:31])  # Ограничение длины имени листа
+                    df.to_excel(
+                        writer, index=False, sheet_name=sheet.title[:31]
+                    )  # Ограничение длины имени листа
 
             output.seek(0)  # Перемещаем курсор в начало файла
             logger.info("✅ Таблица успешно загружена в буфер")
@@ -83,5 +84,7 @@ class GoogleTableBackup:
                 logger.error(f"❌ Ошибка в цикле бэкапа: {e}", exc_info=True)
 
             # Ждём перед следующим запуском
-            logger.info(f"💤 Ожидание {self.backup_interval_seconds // 60} минут до следующего бэкапа...")
+            logger.info(
+                f"💤 Ожидание {self.backup_interval_seconds // 60} минут до следующего бэкапа..."
+            )
             await asyncio.sleep(self.backup_interval_seconds)
