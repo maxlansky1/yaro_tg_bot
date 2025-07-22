@@ -1,0 +1,23 @@
+# для вывода цветных логов
+colorama
+
+# работа с .env
+environs
+
+# Поддержка markdown
+myst-parser
+
+# для проверки кода перед коммитом (линтеры, форматирование итд)
+pre-commit
+
+# для автоматической генерации документации при помощи sphinx
+sphinx
+sphinx-autodoc-typehints
+sphinx-copybutton
+sphinx-intl
+sphinxcontrib-plantuml
+sphinx-rtd-theme
+sphinx-togglebutton
+
+# Библиотека для управления проектами
+copier

@@ -1,0 +1,104 @@
+{
+  "terminal.integrated.env.windows": {
+    "PYTHONPATH": "${workspaceFolder}"
+  },
+
+  "terminal.integrated.env.linux": {
+    "PYTHONPATH": "${workspaceFolder}"
+  },
+
+  "terminal.integrated.env.osx": {
+    "PYTHONPATH": "${workspaceFolder}"
+  },
+  "security.promptForLocalFileProtocolHandling": false,
+  "files.autoSave": "afterDelay",
+  "editor.renderWhitespace": "all",
+  
+  "workbench.activityBar.location": "top",
+  
+  "workbench.secondarySideBar.defaultVisibility": "visible",
+  
+  "outline.showVariables": false,
+
+  "errorLens.enabled": true,
+  "errorLens.messageEnabled": true,
+  "errorLens.problemRangeDecorationEnabled": false,
+  "errorLens.gutterIconsEnabled": false,
+  "errorLens.statusBarMessageEnabled": false,
+  "errorLens.enabledDiagnosticLevels": ["error", "warning", "info"],
+  "errorLens.messageBackgroundMode": "line",
+  "errorLens.severityText": ["⛔", "⚠", "ℹ", "🍏"],
+  "errorLens.margin": "4ch",
+  "errorLens.alignMessage": {
+    "start": 0,
+    "end": 0,
+    "minimumMargin": 4,
+    "padding": [0, 0],
+    "useFixedPosition": true
+  },
+
+  "workbench.colorCustomizations": {
+    "errorLens.errorBackground": "#e454541b",
+    "errorLens.warningBackground": "#ff942f1b",
+    "errorLens.infoBackground": "#00b7e420",
+    "errorLens.hintBackground": "#17a2a220"
+  },
+
+  "better-comments.multilineComments": true,
+  "better-comments.highlightPlainText": true,
+
+  "better-comments.tags": [
+  {
+    "tag": "!",
+    "color": "#FF2D00",
+    "strikethrough": false,
+    "underline": false,
+    "backgroundColor": "transparent",
+    "bold": false,
+    "italic": false
+  },
+  {
+    "tag": "?",
+    "color": "#3498DB",
+    "strikethrough": false,
+    "underline": false,
+    "backgroundColor": "transparent",
+    "bold": false,
+    "italic": false
+  },
+  {
+    "tag": "//",
+    "color": "#474747",
+    "strikethrough": true,
+    "underline": false,
+    "backgroundColor": "transparent",
+    "bold": false,
+    "italic": false
+  },
+  {
+    "tag": "todo",
+    "color": "#FF8C00",
+    "strikethrough": false,
+    "underline": false,
+    "backgroundColor": "transparent",
+    "bold": false,
+    "italic": false
+  },
+  {
+    "tag": "*",
+    "color": "#98C379",
+    "strikethrough": false,
+    "underline": false,
+    "backgroundColor": "transparent",
+    "bold": false,
+    "italic": false
+  }
+],
+"workbench.iconTheme": "vscode-icons"
+
+
+
+}
+
+
+

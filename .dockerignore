@@ -1,0 +1,71 @@
+# =============================
+# 📁 Файлы, которые не нужно передавать в контекст сборки Docker
+# =============================
+
+# 🚫 Системные файлы
+.DS_Store
+Thumbs.db
+
+# 🧱 Git и разработка
+.git
+.gitignore
+*.log
+*.pyc
+__pycache__
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+*.rej
+*.diff
+*.patch
+
+# 📦 Виртуальные окружения и зависимости
+venv/
+env/
+.virtualenv/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# 🛠️ IDE / редакторы
+.idea/
+.vscode/
+*.iml
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# 📂 Папки с тестами (если не нужны в образе)
+tests/
+test_*.py
+__pycache__/test_*.py
+
+# 📄 Конфигурации и переменные окружения
+.env
+.env.local
+.env.*.local
+.env.example
+
+# 📁 Папки node.js (если есть фронтенд)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/
+
+# 🗂️ Артефакты сборки
+dist/
+build/
+*.egg-info/
+*.so
+*.dylib
+*.dll
+
+# 📝 Документация
+docs/
+README.md
+CHANGELOG.md
+LICENSE

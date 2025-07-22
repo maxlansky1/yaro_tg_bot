@@ -1,0 +1,36 @@
+# copier.yaml
+
+project_name:
+  type: str
+  help: Введите имя вашего нового проекта
+  default: test12
+
+project_summary:
+  type: str
+  help: Кратко опишите ваш проект
+  default: Это проект
+
+author_name:
+  type: str
+  help: Как вас зовут?
+  default: Иван Иванов
+
+author_email:
+  type: str
+  help: Введите адрес вашей электронной почты
+  default: dick@gmail.com
+
+# Настройки copier
+_subdirectory: .
+
+_exclude:
+    - ".git"
+    - "__pycache__"
+    - "*.pyc"
+
+_defaults: false  
+
+_vcs_ref: "main"  
+
+# Configure jinja2 defaults to make syntax highlighters lives easier
+_templates_suffix: .jinja

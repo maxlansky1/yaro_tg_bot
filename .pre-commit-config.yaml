@@ -1,0 +1,53 @@
+repos:
+# 1. Линтинг через ruff
+-   repo: https://github.com/astral-sh/ruff-pre-commit   
+    rev: v0.12.2
+    hooks:
+    -   id: ruff-format
+    -   id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+
+# 2. Базовые проверки
+-   repo: https://github.com/pre-commit/pre-commit-hooks   
+    rev: v5.0.0
+    hooks:
+    -   id: check-added-large-files
+    -   id: check-case-conflict
+    -   id: check-illegal-windows-names
+    -   id: name-tests-test
+    -   id: detect-private-key
+    -   id: check-docstring-first
+    -   id: check-symlinks
+    -   id: check-json
+    -   id: check-toml
+    -   id: check-yaml
+
+# 3. Поиск секретов
+-   repo: https://github.com/Yelp/detect-secrets   
+    rev: v1.5.0
+    hooks:
+    -   id: detect-secrets
+
+# 4. Обновление синтаксиса и сортировка импортов
+-   repo: https://github.com/asottile/pyupgrade   
+    rev: v3.20.0
+    hooks:
+    -   id: pyupgrade
+    
+-   repo: https://github.com/PyCQA/isort
+    rev: 6.0.1
+    hooks:
+    -   id: isort
+
+# 5. Проверка покрытия docstrings
+-   repo: https://github.com/econchick/interrogate
+    rev: 1.7.0 
+    hooks:
+      - id: interrogate
+        args: [--fail-under=50, -vv, -i, -I, -m]
+
+# 6. Статический анализ безопасности
+-   repo: https://github.com/PyCQA/bandit   
+    rev: 1.7.5
+    hooks:
+    -   id: bandit

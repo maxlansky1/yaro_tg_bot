@@ -1,0 +1,52 @@
+#docker-compose.yaml
+
+version: '3.9'
+
+services:
+  app:
+    container_name: ${DOCKER_CONTAINER_NAME}
+    build:
+      context: .             # Dockerfile в текущей директории
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID}
+        GID: ${GID}
+        DEPLOY_USER_NAME: ${DEPLOY_USER_NAME}
+        APP_NAME: ${APP_NAME}
+        APP_PORT: ${APP_PORT}
+
+    command: python src/main.py  # можно переопределить стандартный CMD
+
+    volumes:
+      - .:/${APP_NAME}               # монтируем исходный код в контейнер
+
+    env_file:
+      - .env                 # переменные окружения (токены, настройки)
+
+    ports:
+      - "${DOCKER_PORT}:${APP_PORT}"          # проброс портов (используется DOCKER_PORT из .env)
+
+    restart: unless-stopped  # автоперезапуск контейнера при сбоях
+
+    tty: true                # для корректной работы логов и bash-сессии
+    stdin_open: true         # возможность docker attach
+
+    environment:
+      - PYTHONIOENCODING=utf-8
+
+    # depends_on:
+    #   - db                 # зависимости от других сервисов, если будут
+
+# Пример для базы данных PostgreSQL (если понадобится)
+# db:
+#   image: postgres:15
+#   restart: unless-stopped
+#   environment:
+#     POSTGRES_USER: youruser
+#     POSTGRES_PASSWORD: yourpassword
+#     POSTGRES_DB: yourdb
+#   volumes:
+#     - pgdata:/var/lib/postgresql/data
+
+# volumes:
+#   pgdata:
