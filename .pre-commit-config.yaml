@@ -1,7 +1,7 @@
 repos:
 # 1. Линтинг через ruff
 -   repo: https://github.com/astral-sh/ruff-pre-commit   
-    rev: v0.12.2
+    rev: v0.12.4
     hooks:
     -   id: ruff-format
     -   id: ruff-check
@@ -48,6 +48,6 @@ repos:
 
 # 6. Статический анализ безопасности
 -   repo: https://github.com/PyCQA/bandit   
-    rev: 1.7.5
+    rev: 1.8.6
     hooks:
     -   id: bandit

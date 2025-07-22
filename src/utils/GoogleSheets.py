@@ -6,20 +6,19 @@
 добавление пользователей и пригласительных ссылок, обновление данных и пр.
 """
 
-from utils.logger import get_logger
 import time
 import traceback
 from datetime import datetime
-from pathlib import Path
-from typing import List, Dict, Optional, Union
+from typing import Dict, List, Optional
 
 import gspread
 from gspread.exceptions import APIError, WorksheetNotFound
 from oauth2client.service_account import ServiceAccountCredentials
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
+                      wait_exponential)
 
 from configs.config import Config
-
+from utils.logger import get_logger
 
 # === Запускаем логирование ===
 logger = get_logger(__name__)
@@ -37,7 +36,7 @@ class GoogleSheetsManager:
     def __init__(self):
         self.scope = [
             "https://www.googleapis.com/auth/spreadsheets ",
-            "https://www.googleapis.com/auth/drive "
+            "https://www.googleapis.com/auth/drive ",
         ]
         self.creds_path = Config.GOOGLE_CREDS_JSON
         self.client = None
@@ -56,7 +55,7 @@ class GoogleSheetsManager:
         stop=stop_after_attempt(MAX_RETRIES),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((APIError, Exception)),
-        before_sleep=lambda _: logger.warning("Повторная попытка после ошибки API")
+        before_sleep=lambda _: logger.warning("Повторная попытка после ошибки API"),
     )
     def _connect(self):
         """Подключение к Google Таблице"""
@@ -65,9 +64,13 @@ class GoogleSheetsManager:
             logger.info("Подключение к Google Sheets API...")
 
             if not self.creds_path.exists():
-                raise FileNotFoundError(f"Файл учетных данных не найден: {self.creds_path}")
+                raise FileNotFoundError(
+                    f"Файл учетных данных не найден: {self.creds_path}"
+                )
 
-            credentials = ServiceAccountCredentials.from_json_keyfile_name(str(self.creds_path), self.scope)
+            credentials = ServiceAccountCredentials.from_json_keyfile_name(
+                str(self.creds_path), self.scope
+            )
             self.client = gspread.authorize(credentials)
             spreadsheet = self.client.open_by_key(Config.SPREADSHEET_ID)
             self.sheet = spreadsheet.sheet1  # По умолчанию первый лист
@@ -107,7 +110,9 @@ class GoogleSheetsManager:
             else:
                 logger.debug(f"Заголовки актуальны на листе '{sheet.title}'")
         except Exception as e:
-            logger.error(f"Ошибка при проверке заголовков: {e}\n{traceback.format_exc()}")
+            logger.error(
+                f"Ошибка при проверке заголовков: {e}\n{traceback.format_exc()}"
+            )
 
     def add_subscriber(self, headers: List[str], user_data: Dict) -> bool:
         """
@@ -128,26 +133,9 @@ class GoogleSheetsManager:
 
             return True
         except Exception as e:
-            logger.error(f"Ошибка при добавлении пользователя: {e}\n{traceback.format_exc()}")
-            return False
-
-    def update_status_by_id(self, user_id: int, status: str) -> bool:
-        """
-        Обновляет статус пользователя по ID
-        """
-        try:
-            all_values = self.sheet.get_all_values()
-            headers = all_values[0]
-            id_index = headers.index("id")
-            status_index = headers.index("status")
-            for i, row in enumerate(all_values[1:], start=2):
-                if str(user_id) == str(row[id_index]):
-                    self.sheet.update_cell(i, status_index + 1, status)
-                    logger.info(f"Статус пользователя {user_id} обновлен на '{status}'")
-                    return True
-            return False
-        except Exception as e:
-            logger.error(f"Ошибка при обновлении статуса: {e}\n{traceback.format_exc()}")
+            logger.error(
+                f"Ошибка при добавлении пользователя: {e}\n{traceback.format_exc()}"
+            )
             return False
 
     def add_invite_link(self, link_data: Dict) -> bool:
@@ -156,7 +144,14 @@ class GoogleSheetsManager:
         """
         try:
             sheet = self._get_sheet("InviteLinks")
-            headers = ["name", "invite_link", "creator_id", "channel_name", "created_at", "is_revoked"]
+            headers = [
+                "name",
+                "invite_link",
+                "creator_id",
+                "channel_name",
+                "created_at",
+                "is_revoked",
+            ]
             self.ensure_headers(headers, "InviteLinks")
             row = [str(link_data.get(h, "")) for h in headers]
             sheet.append_row(row)
@@ -167,45 +162,47 @@ class GoogleSheetsManager:
             return False
 
     def get_active_invite_links(self) -> List[Dict]:
-      try:
-          sheet = self._get_sheet("InviteLinks")
-          rows = sheet.get_all_records()
-          active_links = []
-          for row in rows:
-              if str(row.get("is_revoked", "")).lower() not in ["true", "1"]:
-                  link = str(row.get("invite_link", "")).strip()
-                  name = str(row.get("name", "")).strip()
-                  if link and link.startswith("https://t.me/+ "):
-                      active_links.append({
-                          "name": name,
-                          "full_link": link,
-                          "clean_link": link.split("/")[-1]
-                      })
-          return active_links
-      except Exception as e:
-          logger.error(f"Ошибка при получении ссылок: {e}")
-          return []
+        try:
+            sheet = self._get_sheet("InviteLinks")
+            rows = sheet.get_all_records()
+            active_links = []
+            for row in rows:
+                if str(row.get("is_revoked", "")).lower() not in ["true", "1"]:
+                    link = str(row.get("invite_link", "")).strip()
+                    name = str(row.get("name", "")).strip()
+                    if link and link.startswith("https://t.me/+ "):
+                        active_links.append(
+                            {
+                                "name": name,
+                                "full_link": link,
+                                "clean_link": link.split("/")[-1],
+                            }
+                        )
+            return active_links
+        except Exception as e:
+            logger.error(f"Ошибка при получении ссылок: {e}")
+            return []
 
     def find_link_row(self, link: str) -> Optional[Dict]:
-      """Находит строку в таблице по ссылке (поддерживает как полный URL, так и короткий формат)"""
-      try:
-          sheet = self._get_sheet("InviteLinks")
-          all_values = sheet.get_all_values()
-          headers = all_values[0]
-          link_index = headers.index("invite_link")
+        """Находит строку в таблице по ссылке (поддерживает как полный URL, так и короткий формат)"""
+        try:
+            sheet = self._get_sheet("InviteLinks")
+            all_values = sheet.get_all_values()
+            headers = all_values[0]
+            link_index = headers.index("invite_link")
 
-          # Нормализуем входящую ссылку
-          if not link.startswith("https://t.me/+ "):
-              link = f"https://t.me/ {link}"
+            # Нормализуем входящую ссылку
+            if not link.startswith("https://t.me/+ "):
+                link = f"https://t.me/ {link}"
 
-          for row in all_values[1:]:
-              stored_link = str(row[link_index]).strip()
-              if stored_link == link:
-                  return dict(zip(headers, row))
-          return None
-      except Exception as e:
-          logger.error(f"Ошибка при поиске строки: {e}")
-          return None
+            for row in all_values[1:]:
+                stored_link = str(row[link_index]).strip()
+                if stored_link == link:
+                    return dict(zip(headers, row))
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка при поиске строки: {e}")
+            return None
 
     def _get_sheet(self, title: str):
         """Возвращает лист по названию или создаёт новый, если его нет"""
