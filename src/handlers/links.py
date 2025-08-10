@@ -140,7 +140,7 @@ async def process_link_name(
             f"🔗 <b>Новая ссылка:</b>\n\n"
             f"📛 <b>Название:</b> <code>{escape(campaign_name)}</code>\n"
             f"📣 <b>Канал:</b> <code>{escape(channel_name)}</code>\n"
-            f"🔗 <b>Ссылка:</b> {escape(invite_link.invite_link)}"
+            f"🔗 <b>Ссылка:</b> <a href='{invite_link.invite_link}'>{escape(invite_link.invite_link)}</a>"
         )
         await message.answer(response)
         logger.info(
