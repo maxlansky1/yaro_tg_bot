@@ -118,7 +118,10 @@ async def process_link_name(
         # Создаём пригласительную ссылку с заданным периодом действия
         expire_date = datetime.now() + timedelta(days=14)
         invite_link = await bot.create_chat_invite_link(
-            chat_id=channel_id, name=campaign_name, expire_date=expire_date
+            chat_id=channel_id,  # id канала
+            name=campaign_name,  # имя ссылки
+            expire_date=expire_date,  # срок действия
+            creates_join_request=True,  # нужно ли одобрение админа для вступления
         )
 
         # Подготавливаем данные для таблицы
