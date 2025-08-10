@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 class GoogleTableBackup:
     def __init__(self, bot: Bot):
         self.bot = bot
-        self.backup_interval_seconds = 60 * 60  # каждый час
+        self.backup_interval_seconds = 60 * 60 * 8  # каждые 8 часов 
         self.gsheets = GoogleSheetsManager()
         self.gc = self.gsheets.client  # Уже подключён через GoogleSheetsManager
 
