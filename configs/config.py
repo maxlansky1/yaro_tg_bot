@@ -77,8 +77,6 @@ HEADERS = [
     "is_bot",  #
     "link_name",  #
     "link",  #
-    "is_primary",  #
     "join_method",  #
     "join_date",  #
-    "status",  #
 ]

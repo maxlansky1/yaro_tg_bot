@@ -38,26 +38,17 @@ async def handle_new_member(
                 # Поля, связанные с ссылкой, инициализируем пустыми или значениями по умолчанию
                 "link_name": "",  # Будет заполнено, если есть invite link
                 "link": "",  # Будет заполнено, если есть invite link
-                "is_primary": False,  # Будет заполнено, если есть invite link
                 "join_method": "Direct Join",  # По умолчанию Direct Join
-                "join_date": datetime.utcnow().isoformat(),  # Дата присоединения
-                "status": "active",  # Статус активный
+                "join_date": datetime.now(datetime.timezone.utc).strftime(
+                    "%d.%m.%Y %H:%M:%S"
+                ),  # Дата присоединения
             }
 
             # Обрабатываем данные пригласительной ссылки, если она есть
             if invite:
-                user_data["join_method"] = "Invite Link"
+                user_data["join_method"] = "✅"
                 user_data["link_name"] = html.escape(invite.name) if invite.name else ""
                 user_data["link"] = invite.invite_link if invite.invite_link else ""
-                user_data["is_primary"] = (
-                    invite.is_primary if hasattr(invite, "is_primary") else False
-                )
-
-            elif getattr(
-                update, "via_join_request", False
-            ):  # <-- Изменение 3: Проверка join request
-                user_data["join_method"] = "Join Request"
-                # Дополнительные данные для join request можно добавить здесь, если доступны
 
             # Добавляем подписчика в таблицу
             # <-- Изменение 4: Передаем только user_data -->
@@ -101,12 +92,8 @@ async def handle_unsubscribed_member(
                 # Поля, связанные с ссылкой, не применимы при отписке
                 "link_name": "",
                 "link": "",
-                "is_primary": False,
-                "join_method": "Unsubscribe",  # Метод "отписка"
+                "join_method": "❌",  # Метод "отписка"
                 "join_date": datetime.utcnow().isoformat(),  # Дата отписки
-                "status": "inactive"
-                if update.new_chat_member.status == ChatMemberStatus.LEFT
-                else "banned",  # Статус
             }
 
             # Добавляем запись об отписке в таблицу
