@@ -39,7 +39,9 @@ async def handle_new_member(
                 "link_name": "",  # Будет заполнено, если есть invite link
                 "link": "",  # Будет заполнено, если есть invite link
                 "join_method": "Direct Join",  # По умолчанию Direct Join
-                "join_date": datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M:%S"),  # Дата присоединения
+                "join_date": datetime.now(timezone.utc)
+                .replace(microsecond=0)
+                .strftime("%d.%m.%Y %H:%M:%S"),  # Дата присоединения
             }
 
             # Обрабатываем данные пригласительной ссылки, если она есть
