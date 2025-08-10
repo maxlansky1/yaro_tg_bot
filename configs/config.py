@@ -71,25 +71,14 @@ config = Config()
 
 # === Заголовки таблицы в Google Sheets ===
 HEADERS = [
-    "id",
-    "full_name",
-    "username",
-    "language_code",
-    "is_premium",
-    "is_bot",
-    "link_name",
-    "link",
-    "creator_id",
-    "is_primary",
-    "is_revoked",
-    "expire_date",
-    "member_limit",
-    "pending_join_request_count",
-    "via_join_request",
-    "join_request_date",
-    "join_method",
-    "join_date",
-    "status",
-    "last_online",
-    "registration_date",
+    "id",  #
+    "full_name",  #
+    "username",  #
+    "is_bot",  #
+    "link_name",  #
+    "link",  #
+    "is_primary",  #
+    "join_method",  #
+    "join_date",  #
+    "status",  #
 ]

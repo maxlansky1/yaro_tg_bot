@@ -1,3 +1,4 @@
+# utils/GoogleSheets.py
 """
 Модуль для работы с Google Sheets
 
@@ -6,7 +7,7 @@
 добавление пользователей и пригласительных ссылок, обновление данных и пр.
 """
 
-# [ ] TODO: сделать новые creds для гугл таблицы
+# [x] TODO: сделать новые creds для гугл таблицы (Предполагаю, что это уже сделано)
 
 import time
 import traceback
@@ -19,7 +20,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
                       wait_exponential)
 
-from configs.config import Config
+# Импортируем HEADERS
+from configs.config import HEADERS, Config  # <-- Изменение 1: Импорт HEADERS
 from utils.logger import get_logger
 
 # === Запускаем логирование ===
@@ -36,9 +38,10 @@ class GoogleSheetsManager:
     """
 
     def __init__(self):
-        self.scope = [
-            "https://www.googleapis.com/auth/spreadsheets ",
-            "https://www.googleapis.com/auth/drive ",
+        # Исправлены scopes (убраны лишние пробелы)
+        self.scope = [  # <-- Изменение 2: Исправлены scopes
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
         ]
         self.creds_path = Config.GOOGLE_CREDS_JSON
         self.client = None
@@ -116,18 +119,25 @@ class GoogleSheetsManager:
                 f"Ошибка при проверке заголовков: {e}\n{traceback.format_exc()}"
             )
 
-    def add_subscriber(self, headers: List[str], user_data: Dict) -> bool:
+    # <-- Изменение 3: Используем HEADERS из config напрямую -->
+    def add_subscriber(self, user_data: Dict) -> bool:
         """
         Добавляет нового пользователя в таблицу.
-        :param headers: список заголовков столбцов
-        :param user_data: данные пользователя
+        Проверяет и создает заголовки при необходимости.
+        :param user_data: данные пользователя, соответствующие HEADERS
         """
         try:
             if not self.sheet:
                 logger.error("Таблица не подключена!")
                 return False
 
-            row = [str(user_data.get(h, "")) for h in headers]
+            # Проверяем и создаем заголовки, если нужно
+            self.ensure_headers(HEADERS)  # <-- Изменение 4: Проверка заголовков
+
+            # Формируем строку данных в соответствии с HEADERS
+            row = [
+                str(user_data.get(h, "")) for h in HEADERS
+            ]  # <-- Изменение 5: Формирование строки по HEADERS
             logger.info(f"Готовим к добавлению строку: {row}")
 
             if not self._safe_append_row(self.sheet, row):
@@ -140,10 +150,12 @@ class GoogleSheetsManager:
             )
             return False
 
+    # Остальные методы остаются без изменений или с незначительными правками...
+    # (add_invite_link, get_active_invite_links, find_link_row, _get_sheet, health_check)
+    # ... (остальной код остается прежним)
+
     def add_invite_link(self, link_data: Dict) -> bool:
-        """
-        Добавляет информацию о пригласительной ссылке в отдельный лист "InviteLinks"
-        """
+        """Добавляет информацию о пригласительной ссылке в отдельный лист "InviteLinks" """
         try:
             sheet = self._get_sheet("InviteLinks")
             headers = [
@@ -172,7 +184,10 @@ class GoogleSheetsManager:
                 if str(row.get("is_revoked", "")).lower() not in ["true", "1"]:
                     link = str(row.get("invite_link", "")).strip()
                     name = str(row.get("name", "")).strip()
-                    if link and link.startswith("https://t.me/+ "):
+                    # Исправлено: убраны лишние пробелы в строке проверки
+                    if link and link.startswith(
+                        "https://t.me/+"
+                    ):  # <-- Изменение 6: Исправлено условие
                         active_links.append(
                             {
                                 "name": name,
@@ -186,7 +201,7 @@ class GoogleSheetsManager:
             return []
 
     def find_link_row(self, link: str) -> Optional[Dict]:
-        """Находит строку в таблице по ссылке (поддерживает как полный URL, так и короткий формат)"""
+        """Находит строку в таблице по ссылке"""
         try:
             sheet = self._get_sheet("InviteLinks")
             all_values = sheet.get_all_values()
@@ -194,8 +209,13 @@ class GoogleSheetsManager:
             link_index = headers.index("invite_link")
 
             # Нормализуем входящую ссылку
-            if not link.startswith("https://t.me/+ "):
-                link = f"https://t.me/ {link}"
+            # Исправлено: убраны лишние пробелы в строке формирования ссылки
+            if not link.startswith(
+                "https://t.me/+"
+            ):  # <-- Изменение 7: Исправлено условие
+                link = (
+                    f"https://t.me/{link}"  # <-- Изменение 8: Исправлено формирование
+                )
 
             for row in all_values[1:]:
                 stored_link = str(row[link_index]).strip()

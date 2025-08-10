@@ -36,3 +36,4 @@ oauth2client
 tenacity
 pandas
 openpyxl
+pydantic

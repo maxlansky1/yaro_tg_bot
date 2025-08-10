@@ -1,4 +1,4 @@
-# subscribers.py
+# src/handlers/subscribers.py
 import html
 from datetime import datetime
 
@@ -6,7 +6,7 @@ from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.types import ChatMemberUpdated
 
-from configs.config import HEADERS
+# Импортируем HEADERS
 from utils.GoogleSheets import GoogleSheetsManager
 from utils.logger import get_logger
 
@@ -19,6 +19,7 @@ async def handle_new_member(
     update: ChatMemberUpdated, bot: Bot, gsheets: GoogleSheetsManager
 ):
     try:
+        # Проверяем, что пользователь присоединился
         if (
             update.old_chat_member.status
             in [ChatMemberStatus.LEFT, ChatMemberStatus.KICKED]
@@ -27,58 +28,52 @@ async def handle_new_member(
             user = update.new_chat_member.user
             invite = update.invite_link
 
+            # Создаем базовый словарь данных пользователя, соответствующий HEADERS
+            # <-- Изменение 2: Инициализация user_data с полями из HEADERS -->
             user_data = {
                 "id": user.id,
-                "full_name": html.escape(user.full_name),
-                "username": f"@{html.escape(user.username)}" if user.username else "—",
-                "language_code": html.escape(user.language_code)
-                if user.language_code
-                else "—",
-                "is_premium": getattr(user, "is_premium", False),
+                "full_name": html.escape(user.full_name) if user.full_name else "",
+                "username": f"@{html.escape(user.username)}" if user.username else "",
                 "is_bot": user.is_bot,
-                "last_online": getattr(user, "last_online_date", "—"),
-                "registration_date": getattr(user, "registration_date", "—"),
+                # Поля, связанные с ссылкой, инициализируем пустыми или значениями по умолчанию
+                "link_name": "",  # Будет заполнено, если есть invite link
+                "link": "",  # Будет заполнено, если есть invite link
+                "is_primary": False,  # Будет заполнено, если есть invite link
+                "join_method": "Direct Join",  # По умолчанию Direct Join
+                "join_date": datetime.utcnow().isoformat(),  # Дата присоединения
+                "status": "active",  # Статус активный
             }
 
-            join_method = "Direct Join"
-            invite_data = {}
-
+            # Обрабатываем данные пригласительной ссылки, если она есть
             if invite:
-                join_method = "Invite Link"
-                invite_data = {
-                    "link_name": html.escape(invite.name) if invite.name else "—",
-                    "link": invite.invite_link,
-                    "creator_id": getattr(invite.creator, "id", "—"),
-                    "is_primary": invite.is_primary,
-                    "is_revoked": invite.is_revoked,
-                    "expire_date": getattr(invite, "expire_date", "—"),
-                    "member_limit": getattr(invite, "member_limit", "—"),
-                    "pending_join_request_count": getattr(
-                        invite, "pending_join_request_count", "—"
-                    ),
-                }
-            elif update.via_join_request:
-                join_method = "Join Request"
-                invite_data = {
-                    "via_join_request": True,
-                    "join_request_date": getattr(update, "date", "—"),
-                }
+                user_data["join_method"] = "Invite Link"
+                user_data["link_name"] = html.escape(invite.name) if invite.name else ""
+                user_data["link"] = invite.invite_link if invite.invite_link else ""
+                user_data["is_primary"] = (
+                    invite.is_primary if hasattr(invite, "is_primary") else False
+                )
 
-            full_data = {
-                **user_data,
-                **invite_data,
-                "join_method": join_method,
-                "join_date": datetime.utcnow().isoformat(),
-                "status": "active",
-            }
+            elif getattr(
+                update, "via_join_request", False
+            ):  # <-- Изменение 3: Проверка join request
+                user_data["join_method"] = "Join Request"
+                # Дополнительные данные для join request можно добавить здесь, если доступны
 
-            # Вместо обновления статуса, просто добавляем строку в таблицу
-            gsheets.add_subscriber(HEADERS, full_data)
+            # Добавляем подписчика в таблицу
+            # <-- Изменение 4: Передаем только user_data -->
+            success = gsheets.add_subscriber(user_data)
 
-            logger.info(f"New member: {user.id} via {join_method}")
+            if success:
+                logger.info(
+                    f"Новый подписчик добавлен в таблицу: {user.id} via {user_data['join_method']}"
+                )
+            else:
+                logger.error(
+                    f"Не удалось добавить нового подписчика в таблицу: {user.id}"
+                )
 
     except Exception as e:
-        logger.error(f"Error in handle_new_member: {e}", exc_info=True)
+        logger.error(f"Ошибка в handle_new_member: {e}", exc_info=True)
 
 
 # === ХЭНДЛЕР ОТПИСКИ===
@@ -86,6 +81,7 @@ async def handle_unsubscribed_member(
     update: ChatMemberUpdated, bot: Bot, gsheets: GoogleSheetsManager
 ):
     try:
+        # Проверяем, что пользователь отписался или был забанен
         if update.old_chat_member.status in [
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.RESTRICTED,
@@ -94,22 +90,42 @@ async def handle_unsubscribed_member(
             ChatMemberStatus.KICKED,
         ]:
             user = update.old_chat_member.user
-            full_name = html.escape(user.full_name) if user.full_name else "—"
-            username = f"@{html.escape(user.username)}" if user.username else "—"
 
-            # Добавляем запись о том, что пользователь отписался
-            full_data = {
+            # Создаем словарь данных для отписавшегося пользователя, соответствующий HEADERS
+            # <-- Изменение 5: Инициализация user_data для отписки -->
+            user_data = {
                 "id": user.id,
-                "full_name": full_name,
-                "username": username,
-                "join_method": "Unsubscribe",
-                "join_date": datetime.utcnow().isoformat(),
-                "status": "inactive",
+                "full_name": html.escape(user.full_name) if user.full_name else "",
+                "username": f"@{html.escape(user.username)}" if user.username else "",
+                "is_bot": user.is_bot,
+                # Поля, связанные с ссылкой, не применимы при отписке
+                "link_name": "",
+                "link": "",
+                "is_primary": False,
+                "join_method": "Unsubscribe",  # Метод "отписка"
+                "join_date": datetime.utcnow().isoformat(),  # Дата отписки
+                "status": "inactive"
+                if update.new_chat_member.status == ChatMemberStatus.LEFT
+                else "banned",  # Статус
             }
 
-            gsheets.add_subscriber(HEADERS, full_data)
+            # Добавляем запись об отписке в таблицу
+            # <-- Изменение 6: Передаем только user_data -->
+            success = gsheets.add_subscriber(user_data)
 
-            logger.info(f"User {user.id} unsubscribed")
+            if success:
+                status_str = (
+                    "отписался"
+                    if update.new_chat_member.status == ChatMemberStatus.LEFT
+                    else "забанен"
+                )
+                logger.info(
+                    f"Пользователь {user.id} {status_str}, запись добавлена в таблицу"
+                )
+            else:
+                logger.error(
+                    f"Не удалось добавить запись об отписке пользователя {user.id}"
+                )
 
     except Exception as e:
-        logger.error(f"Error in handle_unsubscribed_member: {e}", exc_info=True)
+        logger.error(f"Ошибка в handle_unsubscribed_member: {e}", exc_info=True)
