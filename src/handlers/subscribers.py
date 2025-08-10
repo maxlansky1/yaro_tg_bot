@@ -37,23 +37,23 @@ async def handle_new_member(
             # <-- Изменение 2: Инициализация user_data с полями из HEADERS -->
             user_data = {
                 "id": user.id,
-                "full_name": html.escape(user.full_name) if user.full_name else "",
+                "name": html.escape(user.full_name) if user.full_name else "",
                 "username": f"@{html.escape(user.username)}" if user.username else "",
-                "is_bot": "❌" if user.is_bot else "✅",
+                "Человек": "❌" if user.is_bot else "✅",
                 # Поля, связанные с ссылкой, инициализируем пустыми или значениями по умолчанию
-                "link_name": "",  # Будет заполнено, если есть invite link
-                "link": "",  # Будет заполнено, если есть invite link
-                "join_method": "Direct Join",  # По умолчанию Direct Join
-                "join_date": datetime.now(timezone.utc)
+                "Имя ссылки": "",  # Будет заполнено, если есть invite link
+                "Ссылка": "",  # Будет заполнено, если есть invite link
+                "Подписка/отписка": "Direct Join",  # По умолчанию Direct Join
+                "Дата": datetime.now(timezone.utc)
                 .replace(microsecond=0)
                 .strftime("%d.%m.%Y %H:%M:%S"),  # Дата присоединения
             }
 
             # Обрабатываем данные пригласительной ссылки, если она есть
             if invite:
-                user_data["join_method"] = "✅"
-                user_data["link_name"] = html.escape(invite.name) if invite.name else ""
-                user_data["link"] = invite.invite_link if invite.invite_link else ""
+                user_data["Подписка/отписка"] = "✅"
+                user_data["Имя ссылки"] = html.escape(invite.name) if invite.name else ""
+                user_data["Ссылка"] = invite.invite_link if invite.invite_link else ""
 
             # Добавляем подписчика в таблицу
             # <-- Изменение 4: Передаем только user_data -->
@@ -61,7 +61,7 @@ async def handle_new_member(
 
             if success:
                 logger.info(
-                    f"Новый подписчик добавлен в таблицу: {user.id} via {user_data['join_method']}"
+                    f"Новый подписчик добавлен в таблицу: {user.id} via {user_data['Подписка/отписка']}"
                 )
             else:
                 logger.error(
