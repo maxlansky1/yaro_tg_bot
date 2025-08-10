@@ -6,6 +6,8 @@
 добавление пользователей и пригласительных ссылок, обновление данных и пр.
 """
 
+# [ ] TODO: сделать новые creds для гугл таблицы
+
 import time
 import traceback
 from datetime import datetime
