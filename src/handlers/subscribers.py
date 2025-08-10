@@ -1,6 +1,6 @@
 # src/handlers/subscribers.py
 import html
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
@@ -39,9 +39,7 @@ async def handle_new_member(
                 "link_name": "",  # Будет заполнено, если есть invite link
                 "link": "",  # Будет заполнено, если есть invite link
                 "join_method": "Direct Join",  # По умолчанию Direct Join
-                "join_date": datetime.now(datetime.timezone.utc).strftime(
-                    "%d.%m.%Y %H:%M:%S"
-                ),  # Дата присоединения
+                "join_date": datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M:%S"),  # Дата присоединения
             }
 
             # Обрабатываем данные пригласительной ссылки, если она есть
