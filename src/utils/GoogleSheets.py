@@ -159,12 +159,10 @@ class GoogleSheetsManager:
         try:
             sheet = self._get_sheet("InviteLinks")
             headers = [
-                "name",
-                "invite_link",
-                "creator_id",
-                "channel_name",
-                "created_at",
-                "is_revoked",
+                "Имя ссылки",
+                "Ссылка",
+                "Имя канала",
+                "Дата создания ссылки",
             ]
             self.ensure_headers(headers, "InviteLinks")
             row = [str(link_data.get(h, "")) for h in headers]

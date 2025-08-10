@@ -91,14 +91,14 @@ async def handle_unsubscribed_member(
             # <-- Изменение 5: Инициализация user_data для отписки -->
             user_data = {
                 "id": user.id,
-                "full_name": html.escape(user.full_name) if user.full_name else "",
+                "name": html.escape(user.full_name) if user.full_name else "",
                 "username": f"@{html.escape(user.username)}" if user.username else "",
-                "is_bot": "❌" if user.is_bot else "✅",
+                "Человек": "❌" if user.is_bot else "✅",
                 # Поля, связанные с ссылкой, не применимы при отписке
-                "link_name": "",
-                "link": "",
-                "join_method": "❌",  # Метод "отписка"
-                "join_date": datetime.now(timezone.utc)
+                "Имя ссылки": "",
+                "Ссылка": "",
+                "Подписка/отписка": "❌",  # Метод "отписка"
+                "Дата": datetime.now(timezone.utc)
                 .replace(microsecond=0)
                 .strftime("%d.%m.%Y %H:%M:%S"),  # Дата отписки
             }

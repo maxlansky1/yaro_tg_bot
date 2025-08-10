@@ -123,10 +123,10 @@ async def process_link_name(
 
         # Подготавливаем данные для таблицы
         link_data = {
-            "Имя": campaign_name,
+            "Имя ссылки": campaign_name,
             "Ссылка": invite_link.invite_link,
-            "Канал": channel_name,
-            "created_at": datetime.now(timezone.utc)
+            "Имя канала": channel_name,
+            "Дата создания ссылки": datetime.now(timezone.utc)
             .replace(microsecond=0)
             .strftime("%d.%m.%Y %H:%M:%S"),
         }
