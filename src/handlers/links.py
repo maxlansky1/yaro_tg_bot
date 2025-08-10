@@ -6,7 +6,7 @@
 - /revoke_link - отозвать ранее созданную ссылку
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from html import escape
 
 from aiogram import Bot
@@ -123,12 +123,12 @@ async def process_link_name(
 
         # Подготавливаем данные для таблицы
         link_data = {
-            "name": campaign_name,
-            "invite_link": invite_link.invite_link,
-            "creator_id": message.from_user.id,
-            "channel_name": channel_name,
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "is_revoked": "FALSE",
+            "Имя": campaign_name,
+            "Ссылка": invite_link.invite_link,
+            "Канал": channel_name,
+            "created_at": datetime.now(timezone.utc)
+            .replace(microsecond=0)
+            .strftime("%d.%m.%Y %H:%M:%S"),
         }
 
         # Сохраняем в таблицу

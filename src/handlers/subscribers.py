@@ -1,4 +1,9 @@
 # src/handlers/subscribers.py
+
+"""
+Хэндлер подписок
+"""
+
 import html
 from datetime import datetime, timezone
 
@@ -34,7 +39,7 @@ async def handle_new_member(
                 "id": user.id,
                 "full_name": html.escape(user.full_name) if user.full_name else "",
                 "username": f"@{html.escape(user.username)}" if user.username else "",
-                "is_bot": user.is_bot,
+                "is_bot": "❌" if user.is_bot else "✅",
                 # Поля, связанные с ссылкой, инициализируем пустыми или значениями по умолчанию
                 "link_name": "",  # Будет заполнено, если есть invite link
                 "link": "",  # Будет заполнено, если есть invite link
@@ -88,12 +93,14 @@ async def handle_unsubscribed_member(
                 "id": user.id,
                 "full_name": html.escape(user.full_name) if user.full_name else "",
                 "username": f"@{html.escape(user.username)}" if user.username else "",
-                "is_bot": user.is_bot,
+                "is_bot": "❌" if user.is_bot else "✅",
                 # Поля, связанные с ссылкой, не применимы при отписке
                 "link_name": "",
                 "link": "",
                 "join_method": "❌",  # Метод "отписка"
-                "join_date": datetime.utcnow().isoformat(),  # Дата отписки
+                "join_date": datetime.now(timezone.utc)
+                .replace(microsecond=0)
+                .strftime("%d.%m.%Y %H:%M:%S"),  # Дата отписки
             }
 
             # Добавляем запись об отписке в таблицу

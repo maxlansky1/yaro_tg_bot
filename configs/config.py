@@ -70,13 +70,56 @@ Config.check_credentials()
 config = Config()
 
 # === Заголовки таблицы в Google Sheets ===
+
+# TODO: добавить строку с названием канала, чтобы понимать, откуда человек отписался  (взять в title)
+
+"""
+{
+  "ok": true,
+  "result": [
+    {
+      "update_id": 901029927,
+      "chat_member": {
+        "chat": {
+          "id": -1002291410327,
+          "title": "Yaro_Test_1",
+          "type": "channel"
+        },
+        "from": {
+          "id": 1367290691,
+          "is_bot": false,
+          "first_name": "ProtonGod",
+          "username": "chessbuster"
+        },
+        "date": 1754827760,
+        "old_chat_member": {
+          "user": {
+            "id": 1367290691,
+            "is_bot": false,
+            "first_name": "ProtonGod",
+            "username": "chessbuster"
+          },
+          "status": "member"
+        },
+        "new_chat_member": {
+          "user": {
+            "id": 1367290691,
+            "is_bot": false,
+            "first_name": "ProtonGod",
+            "username": "chessbuster"
+          },
+          "status": "left"
+        }
+      }
+    },
+"""
 HEADERS = [
     "id",  #
-    "full_name",  #
+    "name",  #
     "username",  #
-    "is_bot",  #
-    "link_name",  #
-    "link",  #
-    "join_method",  #
-    "join_date",  #
+    "Человек",  #
+    "Имя ссылки",  #
+    "Ссылка",  #
+    "Подписка/отписка",  #
+    "Дата",  #
 ]
