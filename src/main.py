@@ -20,7 +20,11 @@ from configs.config import Config
 from handlers.buttons import buttons_router
 from handlers.links import cmd_create_link, process_link_name
 from handlers.requests import requests_router
-from handlers.subscribers import handle_new_member, handle_unsubscribed_member
+from handlers.subscribers import (
+    handle_chat_join_request,
+    handle_new_member,
+    handle_unsubscribed_member,
+)
 from keyboards.keyboards import get_main_menu_keyboard
 from states.state import CreateLinkStates
 from utils.backup import GoogleTableBackup
@@ -81,6 +85,17 @@ def register_chat_member_handlers(
     logger.info("✅ Обработчики участников чата зарегистрированы")
 
 
+# === Регистрация обработчиков заявок на вступление ===
+def register_chat_join_request_handlers(
+    dp: Dispatcher, bot: Bot, gsheets: GoogleSheetsManager
+):
+    """Регистрирует обработчики заявок на вступление"""
+    dp.chat_join_request.register(
+        partial(handle_chat_join_request, bot=bot, gsheets=gsheets)
+    )
+    logger.info("✅ Обработчики заявок на вступление зарегистрированы")
+
+
 # === Регистрация команд ===
 def register_command_handlers(dp: Dispatcher):
     """Регистрирует обработчики текстовых команд"""
@@ -116,7 +131,16 @@ async def run_bot(bot: Bot, dp: Dispatcher):
     """Запускает бота с текущими настройками"""
     try:
         logger.info("🚀 Бот запускается...")
-        await dp.start_polling(bot)
+        # Указываем нужные типы апдейтов
+        await dp.start_polling(
+            bot,
+            allowed_updates=[
+                "message",
+                "callback_query",
+                "chat_member",
+                "chat_join_request",
+            ],
+        )
     except Exception as e:
         logger.critical(f"💥 Критическая ошибка при работе бота: {e}", exc_info=True)
     finally:
@@ -138,6 +162,9 @@ if __name__ == "__main__":
 
     # Регистрация обработчиков
     register_chat_member_handlers(dp, bot, gsheets)
+    register_chat_join_request_handlers(
+        dp, bot, gsheets
+    )  # Добавляем регистрацию обработчиков заявок
     register_command_handlers(dp)
 
     # === Запуск бота и фоновой задачи ===

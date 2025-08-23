@@ -1,5 +1,3 @@
-# src/handlers/subscribers.py
-
 """
 Хэндлер подписок
 """
@@ -11,20 +9,33 @@ from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
 from aiogram.types import ChatJoinRequest, ChatMemberUpdated
 
-# Импортируем HEADERS
 from utils.GoogleSheets import GoogleSheetsManager
 from utils.logger import get_logger
 
-# === Запускаем логирование ===
 logger = get_logger(__name__)
 
 
-# === ХЭНДЛЕР ПОДПИСКИ===
+def create_user_data_dict(user, invite=None, subscription_type="Direct Join"):
+    """Создает стандартный словарь данных пользователя для Google Sheets"""
+    return {
+        "id": user.id,
+        "name": html.escape(user.full_name) if user.full_name else "",
+        "username": f"@{html.escape(user.username)}" if user.username else "",
+        "Человек": "❌" if user.is_bot else "✅",
+        "Имя ссылки": html.escape(invite.name) if invite and invite.name else "",
+        "Ссылка": invite.invite_link if invite and invite.invite_link else "",
+        "Подписка/отписка": subscription_type,
+        "Дата": datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .strftime("%d.%m.%Y %H:%M:%S"),
+    }
+
+
 async def handle_new_member(
     update: ChatMemberUpdated, bot: Bot, gsheets: GoogleSheetsManager
 ):
+    """Обрабатывает события, когда пользователь вступает в канал"""
     try:
-        # Проверяем, что пользователь присоединился
         if (
             update.old_chat_member.status
             in [ChatMemberStatus.LEFT, ChatMemberStatus.KICKED]
@@ -33,37 +44,15 @@ async def handle_new_member(
             user = update.new_chat_member.user
             invite = update.invite_link
 
-            # Создаем базовый словарь данных пользователя, соответствующий HEADERS
-            # <-- Изменение 2: Инициализация user_data с полями из HEADERS -->
-            user_data = {
-                "id": user.id,
-                "name": html.escape(user.full_name) if user.full_name else "",
-                "username": f"@{html.escape(user.username)}" if user.username else "",
-                "Человек": "❌" if user.is_bot else "✅",
-                # Поля, связанные с ссылкой, инициализируем пустыми или значениями по умолчанию
-                "Имя ссылки": "",  # Будет заполнено, если есть invite link
-                "Ссылка": "",  # Будет заполнено, если есть invite link
-                "Подписка/отписка": "Direct Join",  # По умолчанию Direct Join
-                "Дата": datetime.now(timezone.utc)
-                .replace(microsecond=0)
-                .strftime("%d.%m.%Y %H:%M:%S"),  # Дата присоединения
-            }
+            # Определяем тип подписки
+            subscription_type = "✅" if invite else "Direct Join"
 
-            # Обрабатываем данные пригласительной ссылки, если она есть
-            if invite:
-                user_data["Подписка/отписка"] = "✅"
-                user_data["Имя ссылки"] = (
-                    html.escape(invite.name) if invite.name else ""
-                )
-                user_data["Ссылка"] = invite.invite_link if invite.invite_link else ""
-
-            # Добавляем подписчика в таблицу
-            # <-- Изменение 4: Передаем только user_data -->
+            user_data = create_user_data_dict(user, invite, subscription_type)
             success = gsheets.add_subscriber(user_data)
 
             if success:
                 logger.info(
-                    f"Новый подписчик добавлен в таблицу: {user.id} via {user_data['Подписка/отписка']}"
+                    f"Новый подписчик добавлен в таблицу: {user.id} via {subscription_type}"
                 )
             else:
                 logger.error(
@@ -74,12 +63,11 @@ async def handle_new_member(
         logger.error(f"Ошибка в handle_new_member: {e}", exc_info=True)
 
 
-# === ХЭНДЛЕР ОТПИСКИ===
 async def handle_unsubscribed_member(
     update: ChatMemberUpdated, bot: Bot, gsheets: GoogleSheetsManager
 ):
+    """Обрабатывает события, когда пользователь отписывается от канала"""
     try:
-        # Проверяем, что пользователь отписался или был забанен
         if update.old_chat_member.status in [
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.RESTRICTED,
@@ -89,24 +77,8 @@ async def handle_unsubscribed_member(
         ]:
             user = update.old_chat_member.user
 
-            # Создаем словарь данных для отписавшегося пользователя, соответствующий HEADERS
-            # <-- Изменение 5: Инициализация user_data для отписки -->
-            user_data = {
-                "id": user.id,
-                "name": html.escape(user.full_name) if user.full_name else "",
-                "username": f"@{html.escape(user.username)}" if user.username else "",
-                "Человек": "❌" if user.is_bot else "✅",
-                # Поля, связанные с ссылкой, не применимы при отписке
-                "Имя ссылки": "",
-                "Ссылка": "",
-                "Подписка/отписка": "❌",  # Метод "отписка"
-                "Дата": datetime.now(timezone.utc)
-                .replace(microsecond=0)
-                .strftime("%d.%m.%Y %H:%M:%S"),  # Дата отписки
-            }
-
-            # Добавляем запись об отписке в таблицу
-            # <-- Изменение 6: Передаем только user_data -->
+            # Для отписки invite link не применим
+            user_data = create_user_data_dict(user, None, "❌")
             success = gsheets.add_subscriber(user_data)
 
             if success:
@@ -136,24 +108,15 @@ async def handle_chat_join_request(
         chat = update.chat
 
         # Создаем данные для сохранения в таблицу заявок
-        request_data = {
-            "id": user.id,
-            "name": html.escape(user.full_name) if user.full_name else "",
-            "username": f"@{html.escape(user.username)}" if user.username else "",
-            "Человек": "❌" if user.is_bot else "✅",
-            "Имя ссылки": html.escape(update.invite_link.name)
-            if update.invite_link and update.invite_link.name
-            else "",
-            "Ссылка": update.invite_link.invite_link
-            if update.invite_link and update.invite_link.invite_link
-            else "",
-            "Подписка/отписка": "Заявка на вступление",
-            "Дата": datetime.now(timezone.utc)
-            .replace(microsecond=0)
-            .strftime("%d.%m.%Y %H:%M:%S"),
-            "channel_id": str(chat.id),  # Дополнительное поле для идентификации канала
-            "channel_name": html.escape(chat.title) if chat.title else str(chat.id),
-        }
+        request_data = create_user_data_dict(
+            user, update.invite_link, "Заявка на вступление"
+        )
+        request_data.update(
+            {
+                "channel_id": str(chat.id),
+                "channel_name": html.escape(chat.title) if chat.title else str(chat.id),
+            }
+        )
 
         # Сохраняем заявку в лист "Заявки на вступление"
         success = gsheets.add_join_request(request_data)
