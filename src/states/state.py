@@ -10,7 +10,10 @@ class CreateLinkStates(StatesGroup):
     waiting_for_link_name = State()  # Ожидаем название ссылки
 
 
-class OtherStates(StatesGroup):
-    """Дополнительные состояния, если появятся"""
+class RequestManagementStates(StatesGroup):
+    """Состояния управления заявками на подписку"""
 
-    pass
+    waiting_for_channel_selection = (
+        State()
+    )  # Ожидаем выбор канала для управления заявками
+    managing_requests = State()  # Состояние обработки заявок
