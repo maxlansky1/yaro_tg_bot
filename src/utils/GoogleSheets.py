@@ -204,7 +204,6 @@ class GoogleSheetsManager:
         try:
             # Получаем листы
             requests_sheet = self._get_sheet(JOIN_REQUESTS_SHEET_NAME)
-            main_sheet = self.sheet  # Основной лист
 
             all_requests_values = requests_sheet.get_all_values()
             if not all_requests_values or len(all_requests_values) <= 1:
@@ -220,22 +219,12 @@ class GoogleSheetsManager:
 
             # Находим строки для удаления
             rows_to_delete = []
-            rows_to_move = []
 
             for i, row in enumerate(all_requests_values[1:], 1):  # Пропускаем заголовки
                 if len(row) > id_index and row[id_index] in request_ids:
                     rows_to_delete.append(
                         i + 1
                     )  # +1 потому что get_all_values не включает заголовки, но delete_rows использует 1-based индекс
-                    # Подготавливаем данные для переноса (без channel_id и channel_name)
-                    main_row = [
-                        row[headers.index(h)] if h in headers else "" for h in HEADERS
-                    ]
-                    rows_to_move.append(main_row)
-
-            # Переносим данные в основной лист
-            for row in rows_to_move:
-                self._safe_append_row(main_sheet, row)
 
             # Удаляем строки из листа заявок (удаляем с конца, чтобы не сбить индексы)
             for row_index in sorted(rows_to_delete, reverse=True):
@@ -244,7 +233,6 @@ class GoogleSheetsManager:
                 except Exception as e:
                     logger.error(f"Ошибка при удалении строки {row_index}: {e}")
 
-            logger.info(f"Перенесено {len(rows_to_move)} заявок в основной лист")
             return True
 
         except Exception as e:
