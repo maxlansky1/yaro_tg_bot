@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
-from aiogram.types import ChatMemberUpdated
+from aiogram.types import ChatJoinRequest, ChatMemberUpdated
 
 # Импортируем HEADERS
 from utils.GoogleSheets import GoogleSheetsManager
@@ -52,7 +52,9 @@ async def handle_new_member(
             # Обрабатываем данные пригласительной ссылки, если она есть
             if invite:
                 user_data["Подписка/отписка"] = "✅"
-                user_data["Имя ссылки"] = html.escape(invite.name) if invite.name else ""
+                user_data["Имя ссылки"] = (
+                    html.escape(invite.name) if invite.name else ""
+                )
                 user_data["Ссылка"] = invite.invite_link if invite.invite_link else ""
 
             # Добавляем подписчика в таблицу
@@ -123,3 +125,47 @@ async def handle_unsubscribed_member(
 
     except Exception as e:
         logger.error(f"Ошибка в handle_unsubscribed_member: {e}", exc_info=True)
+
+
+async def handle_chat_join_request(
+    update: ChatJoinRequest, bot: Bot, gsheets: GoogleSheetsManager
+):
+    """Обрабатывает новые заявки на вступление в канал и сохраняет их в Google Sheets"""
+    try:
+        user = update.from_user
+        chat = update.chat
+
+        # Создаем данные для сохранения в таблицу заявок
+        request_data = {
+            "id": user.id,
+            "name": html.escape(user.full_name) if user.full_name else "",
+            "username": f"@{html.escape(user.username)}" if user.username else "",
+            "Человек": "❌" if user.is_bot else "✅",
+            "Имя ссылки": html.escape(update.invite_link.name)
+            if update.invite_link and update.invite_link.name
+            else "",
+            "Ссылка": update.invite_link.invite_link
+            if update.invite_link and update.invite_link.invite_link
+            else "",
+            "Подписка/отписка": "Заявка на вступление",
+            "Дата": datetime.now(timezone.utc)
+            .replace(microsecond=0)
+            .strftime("%d.%m.%Y %H:%M:%S"),
+            "channel_id": str(chat.id),  # Дополнительное поле для идентификации канала
+            "channel_name": html.escape(chat.title) if chat.title else str(chat.id),
+        }
+
+        # Сохраняем заявку в лист "Заявки на вступление"
+        success = gsheets.add_join_request(request_data)
+
+        if success:
+            logger.info(
+                f"Новая заявка на вступление сохранена в таблицу: {user.id} в канал {chat.title}"
+            )
+        else:
+            logger.error(
+                f"Не удалось сохранить заявку в таблицу: {user.id} в канал {chat.title}"
+            )
+
+    except Exception as e:
+        logger.error(f"Ошибка в handle_chat_join_request: {e}", exc_info=True)

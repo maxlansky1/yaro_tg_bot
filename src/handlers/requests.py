@@ -7,9 +7,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from configs.config import Config
-from keyboards.keyboards import (get_back_to_channels_keyboard,
-                                 get_channel_selection_keyboard,
-                                 get_request_management_keyboard)
+from keyboards.keyboards import (
+    get_back_to_channels_keyboard,
+    get_channel_selection_keyboard,
+    get_request_management_keyboard,
+)
 from states.state import RequestManagementStates
 from utils.logger import get_logger
 
@@ -61,12 +63,9 @@ async def handle_channel_selection_callback(callback: CallbackQuery, state: FSMC
         # Сохраняем выбранный канал в состоянии
         await state.update_data(selected_channel=channel_id)
 
-        # Получаем список заявок на вступление
+        # Получаем список заявок из Google Sheets
         try:
-            join_requests = await callback.bot.get_chat_join_requests(
-                chat_id=channel_id,
-                limit=10,  # Ограничиваем для предотвращения переполнения сообщения
-            )
+            pending_requests = callback.bot.gsheets.get_pending_requests(channel_id)
         except Exception as e:
             logger.error(f"Ошибка при получении заявок для канала {channel_id}: {e}")
             await callback.answer(
@@ -75,7 +74,7 @@ async def handle_channel_selection_callback(callback: CallbackQuery, state: FSMC
             return
 
         # Проверяем наличие заявок
-        if not join_requests.requests:
+        if not pending_requests:
             keyboard = get_back_to_channels_keyboard()
             await callback.message.edit_text(
                 "📭 Нет заявок на вступление в этот канал", reply_markup=keyboard
@@ -83,24 +82,20 @@ async def handle_channel_selection_callback(callback: CallbackQuery, state: FSMC
             return
 
         # Сохраняем список заявок в состоянии
-        requests_data = []
-        for req in join_requests.requests:
-            user = req.user
-            requests_data.append(
-                {
-                    "user_id": user.id,
-                    "username": user.username,
-                    "full_name": user.full_name,
-                }
-            )
-
-        await state.update_data(requests_data=requests_data)
+        await state.update_data(requests_data=pending_requests)
 
         # Формируем сообщение со списком заявок
-        text = "📋 Заявки на вступление в канал:\n\n"
-        for i, req in enumerate(requests_data, 1):
-            username = f"@{req['username']}" if req["username"] else ""
-            text += f"{i}. {req['full_name']} {username}\n"
+        channel_name = (
+            pending_requests[0].get("channel_name", channel_id)
+            if pending_requests
+            else channel_id
+        )
+        text = f"📋 Заявки на вступление в канал {channel_name}:\n\n"
+
+        for i, req in enumerate(pending_requests, 1):
+            username = req.get("username", "")
+            name = req.get("name", f"ID: {req.get('id', 'N/A')}")
+            text += f"{i}. {name} {username}\n"
 
         # Отображаем список заявок с кнопками управления
         keyboard = get_request_management_keyboard()
@@ -132,23 +127,39 @@ async def handle_accept_all_requests(callback: CallbackQuery, state: FSMContext)
             await callback.answer("⚠️ Ошибка: данные не найдены", show_alert=True)
             return
 
-        # Массовое одобрение заявок
+        # Массовое одобрение заявок и перенос в основную таблицу
         success_count = 0
+        approved_user_ids = []
+
         for req in requests_data:
+            user_id = int(req.get("id"))
             try:
-                await callback.bot.approve_chat_join_request(
-                    chat_id=channel_id, user_id=req["user_id"]
+                # Одобряем заявку через Telegram API
+                result = await callback.bot.approve_chat_join_request(
+                    chat_id=channel_id, user_id=user_id
                 )
-                success_count += 1
+
+                if result:
+                    success_count += 1
+                    approved_user_ids.append(str(user_id))
+                else:
+                    logger.error(f"Не удалось одобрить заявку пользователя {user_id}")
+
             except Exception as e:
-                logger.error(
-                    f"Ошибка при одобрении заявки пользователя {req['user_id']}: {e}"
-                )
+                logger.error(f"Ошибка при одобрении заявки пользователя {user_id}: {e}")
+
+        # Переносим одобренные заявки в основную таблицу
+        if approved_user_ids:
+            try:
+                callback.bot.gsheets.move_requests_to_main_sheet(approved_user_ids)
+            except Exception as e:
+                logger.error(f"Ошибка при переносе заявок в основную таблицу: {e}")
 
         # Отправляем результат
         keyboard = get_back_to_channels_keyboard()
         await callback.message.edit_text(
-            f"✅ Обработано заявок: {success_count} из {len(requests_data)}",
+            f"✅ Обработано заявок: {success_count} из {len(requests_data)}\n"
+            f"{'🔄 Заявки перенесены в основную таблицу' if approved_user_ids else ''}",
             reply_markup=keyboard,
         )
 
@@ -178,21 +189,39 @@ async def handle_decline_all_requests(callback: CallbackQuery, state: FSMContext
 
         # Массовое отклонение заявок
         success_count = 0
+        declined_user_ids = []
+
         for req in requests_data:
+            user_id = int(req.get("id"))
             try:
-                await callback.bot.decline_chat_join_request(
-                    chat_id=channel_id, user_id=req["user_id"]
+                # Отклоняем заявку через Telegram API
+                result = await callback.bot.decline_chat_join_request(
+                    chat_id=channel_id, user_id=user_id
                 )
-                success_count += 1
+
+                if result:
+                    success_count += 1
+                    declined_user_ids.append(str(user_id))
+                else:
+                    logger.error(f"Не удалось отклонить заявку пользователя {user_id}")
+
             except Exception as e:
                 logger.error(
-                    f"Ошибка при отклонении заявки пользователя {req['user_id']}: {e}"
+                    f"Ошибка при отклонении заявки пользователя {user_id}: {e}"
                 )
+
+        # Удаляем отклоненные заявки из таблицы заявок
+        if declined_user_ids:
+            try:
+                callback.bot.gsheets.move_requests_to_main_sheet(declined_user_ids)
+            except Exception as e:
+                logger.error(f"Ошибка при удалении отклоненных заявок: {e}")
 
         # Отправляем результат
         keyboard = get_back_to_channels_keyboard()
         await callback.message.edit_text(
-            f"❌ Отклонено заявок: {success_count} из {len(requests_data)}",
+            f"❌ Отклонено заявок: {success_count} из {len(requests_data)}\n"
+            f"{'🔄 Заявки удалены из таблицы' if declined_user_ids else ''}",
             reply_markup=keyboard,
         )
 
