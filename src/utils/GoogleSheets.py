@@ -17,8 +17,12 @@ from typing import Dict, List, Optional
 import gspread
 from gspread.exceptions import APIError, WorksheetNotFound
 from oauth2client.service_account import ServiceAccountCredentials
-from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
-                      wait_exponential)
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 # Импортируем HEADERS
 from configs.config import HEADERS, Config  # <-- Изменение 1: Импорт HEADERS
@@ -334,6 +338,12 @@ class GoogleSheetsManager:
             logger.warning(f"Лист '{title}' не найден, создаём новый...")
             spreadsheet = self.client.open_by_key(Config.SPREADSHEET_ID)
             worksheet = spreadsheet.add_worksheet(title=title, rows="100", cols="20")
+
+            # Для листа заявок сразу добавляем заголовки
+            if title == "Заявки на вступление":
+                request_headers = list(HEADERS) + ["channel_id", "channel_name"]
+                worksheet.insert_row(request_headers, index=1)
+                logger.info(f"Заголовки созданы для листа '{title}'")
             return worksheet
 
     def health_check(self) -> bool:
