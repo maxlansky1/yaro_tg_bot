@@ -127,7 +127,7 @@ class GoogleSheetsManager:
                 logger.info(f"Заголовки созданы на листе '{sheet.title}'")
             elif all_values[0] != headers:
                 # Если заголовки не совпадают, обновляем их
-                sheet.delete_row(1)
+                sheet.delete_rows(1)
                 sheet.insert_row(headers, index=1)
                 logger.warning(f"Заголовки обновлены на листе '{sheet.title}'")
             else:
@@ -226,7 +226,7 @@ class GoogleSheetsManager:
                 if len(row) > id_index and row[id_index] in request_ids:
                     rows_to_delete.append(
                         i + 1
-                    )  # +1 потому что get_all_values не включает заголовки, но delete_row использует 1-based индекс
+                    )  # +1 потому что get_all_values не включает заголовки, но delete_rows использует 1-based индекс
                     # Подготавливаем данные для переноса (без channel_id и channel_name)
                     main_row = [
                         row[headers.index(h)] if h in headers else "" for h in HEADERS
@@ -240,7 +240,7 @@ class GoogleSheetsManager:
             # Удаляем строки из листа заявок (удаляем с конца, чтобы не сбить индексы)
             for row_index in sorted(rows_to_delete, reverse=True):
                 try:
-                    requests_sheet.delete_row(row_index)
+                    requests_sheet.delete_rows(row_index)
                 except Exception as e:
                     logger.error(f"Ошибка при удалении строки {row_index}: {e}")
 
