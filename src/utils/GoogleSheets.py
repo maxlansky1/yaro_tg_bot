@@ -38,8 +38,7 @@ class GoogleSheetsManager:
     """
 
     def __init__(self):
-        # Исправлены scopes (убраны лишние пробелы)
-        self.scope = [  # <-- Изменение 2: Исправлены scopes
+        self.scope = [
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
         ]
@@ -119,6 +118,119 @@ class GoogleSheetsManager:
                 f"Ошибка при проверке заголовков: {e}\n{traceback.format_exc()}"
             )
 
+    # Добавляем новый метод в класс GoogleSheetsManager:
+
+    def add_join_request(self, request_data: Dict) -> bool:
+        """
+        Добавляет новую заявку на вступление в отдельный лист "Заявки на вступление"
+        """
+        try:
+            # Получаем или создаем лист для заявок
+            sheet = self._get_sheet("Заявки на вступление")
+
+            # Заголовки для листа заявок (расширяем стандартные заголовки)
+            request_headers = HEADERS + ["channel_id", "channel_name"]
+            self.ensure_headers(request_headers, "Заявки на вступление")
+
+            # Формируем строку данных
+            row = [str(request_data.get(h, "")) for h in request_headers]
+
+            if not self._safe_append_row(sheet, row):
+                raise ValueError("Не удалось добавить строку заявки")
+
+            logger.info(f"Заявка добавлена в таблицу: {request_data.get('id')}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Ошибка при добавлении заявки: {e}\n{traceback.format_exc()}")
+            return False
+
+    def get_pending_requests(self, channel_id: str) -> List[Dict]:
+        """
+        Получает список всех заявок на вступление для указанного канала
+        """
+        try:
+            sheet = self._get_sheet("Заявки на вступление")
+            all_values = sheet.get_all_values()
+
+            if not all_values:
+                return []
+
+            headers = all_values[0]
+            requests_list = []
+
+            # Ищем индекс колонки channel_id
+            try:
+                channel_id_index = headers.index("channel_id")
+            except ValueError:
+                logger.error("Колонка channel_id не найдена в листе заявок")
+                return []
+
+            # Проходим по всем строкам и фильтруем по channel_id
+            for row in all_values[1:]:  # Пропускаем заголовки
+                if len(row) > channel_id_index and row[channel_id_index] == channel_id:
+                    requests_list.append(dict(zip(headers, row)))
+
+            return requests_list
+
+        except Exception as e:
+            logger.error(f"Ошибка при получении заявок: {e}\n{traceback.format_exc()}")
+            return []
+
+    def move_requests_to_main_sheet(self, request_ids: List[str]) -> bool:
+        """
+        Переносит обработанные заявки из листа "Заявки на вступление" в основной лист
+        и удаляет их из листа заявок
+        """
+        try:
+            # Получаем листы
+            requests_sheet = self._get_sheet("Заявки на вступление")
+            main_sheet = self.sheet  # Основной лист
+
+            all_requests_values = requests_sheet.get_all_values()
+            if not all_requests_values:
+                return True
+
+            headers = all_requests_values[0]
+            id_index = headers.index("id") if "id" in headers else -1
+
+            if id_index == -1:
+                logger.error("Колонка id не найдена в листе заявок")
+                return False
+
+            # Находим строки для удаления
+            rows_to_delete = []
+            rows_to_move = []
+
+            for i, row in enumerate(all_requests_values[1:], 1):  # Пропускаем заголовки
+                if len(row) > id_index and row[id_index] in request_ids:
+                    rows_to_delete.append(
+                        i + 1
+                    )  # +1 потому что get_all_values не включает заголовки, но delete_row использует 1-based индекс
+                    # Подготавливаем данные для переноса (без channel_id и channel_name)
+                    main_row = [
+                        row[headers.index(h)] if h in headers else "" for h in HEADERS
+                    ]
+                    rows_to_move.append(main_row)
+
+            # Переносим данные в основной лист
+            for row in rows_to_move:
+                self._safe_append_row(main_sheet, row)
+
+            # Удаляем строки из листа заявок (удаляем с конца, чтобы не сбить индексы)
+            for row_index in sorted(rows_to_delete, reverse=True):
+                try:
+                    requests_sheet.delete_row(row_index)
+                except Exception as e:
+                    logger.error(f"Ошибка при удалении строки {row_index}: {e}")
+
+            logger.info(f"Перенесено {len(rows_to_move)} заявок в основной лист")
+            return True
+
+        except Exception as e:
+            logger.error(f"Ошибка при переносе заявок: {e}\n{traceback.format_exc()}")
+            return False
+
     # <-- Изменение 3: Используем HEADERS из config напрямую -->
     def add_subscriber(self, user_data: Dict) -> bool:
         """
@@ -132,7 +244,7 @@ class GoogleSheetsManager:
                 return False
 
             # Проверяем и создаем заголовки, если нужно
-            self.ensure_headers(HEADERS)  # <-- Изменение 4: Проверка заголовков
+            self.ensure_headers(HEADERS)
 
             # Формируем строку данных в соответствии с HEADERS
             row = [
@@ -149,10 +261,6 @@ class GoogleSheetsManager:
                 f"Ошибка при добавлении пользователя: {e}\n{traceback.format_exc()}"
             )
             return False
-
-    # Остальные методы остаются без изменений или с незначительными правками...
-    # (add_invite_link, get_active_invite_links, find_link_row, _get_sheet, health_check)
-    # ... (остальной код остается прежним)
 
     def add_invite_link(self, link_data: Dict) -> bool:
         """Добавляет информацию о пригласительной ссылке в отдельный лист "InviteLinks" """
@@ -182,10 +290,8 @@ class GoogleSheetsManager:
                 if str(row.get("is_revoked", "")).lower() not in ["true", "1"]:
                     link = str(row.get("invite_link", "")).strip()
                     name = str(row.get("name", "")).strip()
-                    # Исправлено: убраны лишние пробелы в строке проверки
-                    if link and link.startswith(
-                        "https://t.me/+"
-                    ):  # <-- Изменение 6: Исправлено условие
+
+                    if link and link.startswith("https://t.me/+"):
                         active_links.append(
                             {
                                 "name": name,
@@ -207,13 +313,8 @@ class GoogleSheetsManager:
             link_index = headers.index("invite_link")
 
             # Нормализуем входящую ссылку
-            # Исправлено: убраны лишние пробелы в строке формирования ссылки
-            if not link.startswith(
-                "https://t.me/+"
-            ):  # <-- Изменение 7: Исправлено условие
-                link = (
-                    f"https://t.me/{link}"  # <-- Изменение 8: Исправлено формирование
-                )
+            if not link.startswith("https://t.me/+"):
+                link = f"https://t.me/{link}"
 
             for row in all_values[1:]:
                 stored_link = str(row[link_index]).strip()
