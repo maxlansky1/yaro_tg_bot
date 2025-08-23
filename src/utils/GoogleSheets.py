@@ -1,4 +1,3 @@
-# utils/GoogleSheets.py
 """
 Модуль для работы с Google Sheets
 
@@ -6,8 +5,6 @@
 Поддерживает работу с несколькими листами, автоматическое создание заголовков,
 добавление пользователей и пригласительных ссылок, обновление данных и пр.
 """
-
-# [x] TODO: сделать новые creds для гугл таблицы (Предполагаю, что это уже сделано)
 
 import time
 import traceback
@@ -24,8 +21,7 @@ from tenacity import (
     wait_exponential,
 )
 
-# Импортируем HEADERS
-from configs.config import HEADERS, Config  # <-- Изменение 1: Импорт HEADERS
+from configs.config import HEADERS, Config
 from utils.logger import get_logger
 
 # === Запускаем логирование ===
@@ -35,6 +31,11 @@ logger = get_logger(__name__)
 MAX_RETRIES = 5
 API_DELAY = 1.5
 
+# Названия листов
+MAIN_SHEET_NAME = "Подписчики"
+INVITE_LINKS_SHEET_NAME = "Пригласительные ссылки"
+JOIN_REQUESTS_SHEET_NAME = "Заявки на вступление"
+
 
 class GoogleSheetsManager:
     """
@@ -42,13 +43,14 @@ class GoogleSheetsManager:
     """
 
     def __init__(self):
+        # Исправлены scopes (убраны лишние пробелы)
         self.scope = [
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
         ]
         self.creds_path = Config.GOOGLE_CREDS_JSON
         self.client = None
-        self.sheet = None  # Главный лист (например, "Users")
+        self.sheet = None  # Главный лист
         self.last_api_call = datetime.min
         self._connect()
 
@@ -81,7 +83,17 @@ class GoogleSheetsManager:
             )
             self.client = gspread.authorize(credentials)
             spreadsheet = self.client.open_by_key(Config.SPREADSHEET_ID)
-            self.sheet = spreadsheet.sheet1  # По умолчанию первый лист
+
+            # Получаем или создаем главный лист с правильным названием
+            try:
+                self.sheet = spreadsheet.worksheet(MAIN_SHEET_NAME)
+            except WorksheetNotFound:
+                # Если лист не найден, используем первый лист и переименовываем его
+                self.sheet = spreadsheet.sheet1
+                try:
+                    self.sheet.update_title(MAIN_SHEET_NAME)
+                except Exception as e:
+                    logger.warning(f"Не удалось переименовать первый лист: {e}")
 
             logger.info("Успешное подключение к Google Таблице")
 
@@ -108,10 +120,13 @@ class GoogleSheetsManager:
         try:
             sheet = self._get_sheet(sheet_title) if sheet_title else self.sheet
             all_values = sheet.get_all_values()
+
             if not all_values or not all_values[0]:
+                # Если нет данных или заголовков, создаем заголовки
                 sheet.insert_row(headers, index=1)
                 logger.info(f"Заголовки созданы на листе '{sheet.title}'")
             elif all_values[0] != headers:
+                # Если заголовки не совпадают, обновляем их
                 sheet.delete_row(1)
                 sheet.insert_row(headers, index=1)
                 logger.warning(f"Заголовки обновлены на листе '{sheet.title}'")
@@ -119,10 +134,8 @@ class GoogleSheetsManager:
                 logger.debug(f"Заголовки актуальны на листе '{sheet.title}'")
         except Exception as e:
             logger.error(
-                f"Ошибка при проверке заголовков: {e}\n{traceback.format_exc()}"
+                f"Ошибка при проверке заголовков на листе '{sheet_title}': {e}\n{traceback.format_exc()}"
             )
-
-    # Добавляем новый метод в класс GoogleSheetsManager:
 
     def add_join_request(self, request_data: Dict) -> bool:
         """
@@ -130,11 +143,13 @@ class GoogleSheetsManager:
         """
         try:
             # Получаем или создаем лист для заявок
-            sheet = self._get_sheet("Заявки на вступление")
+            sheet = self._get_sheet(JOIN_REQUESTS_SHEET_NAME)
 
             # Заголовки для листа заявок (расширяем стандартные заголовки)
-            request_headers = HEADERS + ["channel_id", "channel_name"]
-            self.ensure_headers(request_headers, "Заявки на вступление")
+            request_headers = list(HEADERS) + ["channel_id", "channel_name"]
+
+            # Явно создаем заголовки для листа заявок
+            self.ensure_headers(request_headers, JOIN_REQUESTS_SHEET_NAME)
 
             # Формируем строку данных
             row = [str(request_data.get(h, "")) for h in request_headers]
@@ -154,21 +169,21 @@ class GoogleSheetsManager:
         Получает список всех заявок на вступление для указанного канала
         """
         try:
-            sheet = self._get_sheet("Заявки на вступление")
+            sheet = self._get_sheet(JOIN_REQUESTS_SHEET_NAME)
             all_values = sheet.get_all_values()
 
-            if not all_values:
+            if not all_values or len(all_values) <= 1:  # Только заголовки или пусто
                 return []
 
             headers = all_values[0]
-            requests_list = []
 
-            # Ищем индекс колонки channel_id
-            try:
-                channel_id_index = headers.index("channel_id")
-            except ValueError:
+            # Проверяем наличие необходимых колонок
+            if "channel_id" not in headers:
                 logger.error("Колонка channel_id не найдена в листе заявок")
                 return []
+
+            channel_id_index = headers.index("channel_id")
+            requests_list = []
 
             # Проходим по всем строкам и фильтруем по channel_id
             for row in all_values[1:]:  # Пропускаем заголовки
@@ -188,19 +203,20 @@ class GoogleSheetsManager:
         """
         try:
             # Получаем листы
-            requests_sheet = self._get_sheet("Заявки на вступление")
+            requests_sheet = self._get_sheet(JOIN_REQUESTS_SHEET_NAME)
             main_sheet = self.sheet  # Основной лист
 
             all_requests_values = requests_sheet.get_all_values()
-            if not all_requests_values:
+            if not all_requests_values or len(all_requests_values) <= 1:
                 return True
 
             headers = all_requests_values[0]
-            id_index = headers.index("id") if "id" in headers else -1
 
-            if id_index == -1:
+            if "id" not in headers:
                 logger.error("Колонка id не найдена в листе заявок")
                 return False
+
+            id_index = headers.index("id")
 
             # Находим строки для удаления
             rows_to_delete = []
@@ -235,7 +251,6 @@ class GoogleSheetsManager:
             logger.error(f"Ошибка при переносе заявок: {e}\n{traceback.format_exc()}")
             return False
 
-    # <-- Изменение 3: Используем HEADERS из config напрямую -->
     def add_subscriber(self, user_data: Dict) -> bool:
         """
         Добавляет нового пользователя в таблицу.
@@ -248,12 +263,10 @@ class GoogleSheetsManager:
                 return False
 
             # Проверяем и создаем заголовки, если нужно
-            self.ensure_headers(HEADERS)
+            self.ensure_headers(HEADERS, MAIN_SHEET_NAME)
 
             # Формируем строку данных в соответствии с HEADERS
-            row = [
-                str(user_data.get(h, "")) for h in HEADERS
-            ]  # <-- Изменение 5: Формирование строки по HEADERS
+            row = [str(user_data.get(h, "")) for h in HEADERS]
             logger.info(f"Готовим к добавлению строку: {row}")
 
             if not self._safe_append_row(self.sheet, row):
@@ -267,19 +280,22 @@ class GoogleSheetsManager:
             return False
 
     def add_invite_link(self, link_data: Dict) -> bool:
-        """Добавляет информацию о пригласительной ссылке в отдельный лист "InviteLinks" """
+        """Добавляет информацию о пригласительной ссылке в отдельный лист"""
         try:
-            sheet = self._get_sheet("InviteLinks")
+            sheet = self._get_sheet(INVITE_LINKS_SHEET_NAME)
             headers = [
                 "Имя ссылки",
                 "Ссылка",
                 "Имя канала",
                 "Дата создания ссылки",
             ]
-            self.ensure_headers(headers, "InviteLinks")
+            self.ensure_headers(headers, INVITE_LINKS_SHEET_NAME)
             row = [str(link_data.get(h, "")) for h in headers]
-            sheet.append_row(row)
-            logger.info(f"Ссылка добавлена в InviteLinks: {row}")
+
+            if not self._safe_append_row(sheet, row):
+                raise ValueError("Не удалось добавить строку ссылки")
+
+            logger.info(f"Ссылка добавлена: {row}")
             return True
         except Exception as e:
             logger.error(f"Ошибка при добавлении ссылки: {e}\n{traceback.format_exc()}")
@@ -287,14 +303,23 @@ class GoogleSheetsManager:
 
     def get_active_invite_links(self) -> List[Dict]:
         try:
-            sheet = self._get_sheet("InviteLinks")
-            rows = sheet.get_all_records()
+            sheet = self._get_sheet(INVITE_LINKS_SHEET_NAME)
+            all_values = sheet.get_all_values()
+
+            if not all_values or len(all_values) <= 1:
+                return []
+
+            headers = all_values[0]
+            rows = [dict(zip(headers, row)) for row in all_values[1:]]
+
             active_links = []
             for row in rows:
-                if str(row.get("is_revoked", "")).lower() not in ["true", "1"]:
-                    link = str(row.get("invite_link", "")).strip()
-                    name = str(row.get("name", "")).strip()
+                # Исправлено: правильная проверка отозванных ссылок
+                if str(row.get("is_revoked", "")).lower() not in ["true", "1", "да"]:
+                    link = str(row.get("Ссылка", "")).strip()
+                    name = str(row.get("Имя ссылки", "")).strip()
 
+                    # Исправлено: убраны лишние пробелы
                     if link and link.startswith("https://t.me/+"):
                         active_links.append(
                             {
@@ -311,19 +336,39 @@ class GoogleSheetsManager:
     def find_link_row(self, link: str) -> Optional[Dict]:
         """Находит строку в таблице по ссылке"""
         try:
-            sheet = self._get_sheet("InviteLinks")
+            sheet = self._get_sheet(INVITE_LINKS_SHEET_NAME)
             all_values = sheet.get_all_values()
+
+            if not all_values or len(all_values) <= 1:
+                return None
+
             headers = all_values[0]
-            link_index = headers.index("invite_link")
+
+            if "Ссылка" not in headers:
+                logger.error(
+                    "Колонка 'Ссылка' не найдена в листе пригласительных ссылок"
+                )
+                return None
+
+            link_index = headers.index("Ссылка")
 
             # Нормализуем входящую ссылку
-            if not link.startswith("https://t.me/+"):
-                link = f"https://t.me/{link}"
+            # Исправлено: убраны лишние пробелы
+            normalized_link = link.strip()
+            if not normalized_link.startswith("https://t.me/+"):
+                # Если это короткая ссылка, пытаемся нормализовать
+                if normalized_link.startswith("https://t.me/"):
+                    normalized_link = normalized_link
+                elif normalized_link.startswith("+"):
+                    normalized_link = f"https://t.me/{normalized_link}"
+                elif normalized_link:
+                    normalized_link = f"https://t.me/+{normalized_link}"
 
             for row in all_values[1:]:
-                stored_link = str(row[link_index]).strip()
-                if stored_link == link:
-                    return dict(zip(headers, row))
+                if len(row) > link_index:
+                    stored_link = str(row[link_index]).strip()
+                    if stored_link == normalized_link:
+                        return dict(zip(headers, row))
             return None
         except Exception as e:
             logger.error(f"Ошибка при поиске строки: {e}")
@@ -339,11 +384,24 @@ class GoogleSheetsManager:
             spreadsheet = self.client.open_by_key(Config.SPREADSHEET_ID)
             worksheet = spreadsheet.add_worksheet(title=title, rows="100", cols="20")
 
-            # Для листа заявок сразу добавляем заголовки
-            if title == "Заявки на вступление":
+            # Для листов с особыми заголовками сразу добавляем их
+            if title == JOIN_REQUESTS_SHEET_NAME:
                 request_headers = list(HEADERS) + ["channel_id", "channel_name"]
                 worksheet.insert_row(request_headers, index=1)
                 logger.info(f"Заголовки созданы для листа '{title}'")
+            elif title == INVITE_LINKS_SHEET_NAME:
+                link_headers = [
+                    "Имя ссылки",
+                    "Ссылка",
+                    "Имя канала",
+                    "Дата создания ссылки",
+                ]
+                worksheet.insert_row(link_headers, index=1)
+                logger.info(f"Заголовки созданы для листа '{title}'")
+            elif title == MAIN_SHEET_NAME:
+                worksheet.insert_row(HEADERS, index=1)
+                logger.info(f"Заголовки созданы для листа '{title}'")
+
             return worksheet
 
     def health_check(self) -> bool:
