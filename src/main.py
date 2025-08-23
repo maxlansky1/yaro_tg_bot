@@ -19,8 +19,9 @@ from aiogram.types import Message
 from configs.config import Config
 from handlers.buttons import buttons_router
 from handlers.links import cmd_create_link, process_link_name
+from handlers.requests import requests_router
 from handlers.subscribers import handle_new_member, handle_unsubscribed_member
-from keyboards.keyboards import main_menu_keyboard
+from keyboards.keyboards import get_main_menu_keyboard
 from states.state import CreateLinkStates
 from utils.backup import GoogleTableBackup
 from utils.GoogleSheets import GoogleSheetsManager
@@ -91,7 +92,7 @@ def register_command_handlers(dp: Dispatcher):
             if message.from_user.id in Config.TELEGRAM_ADMIN_IDS:
                 await message.answer(
                     "👋 Приветствую, администратор! Выберите действие:",
-                    reply_markup=main_menu_keyboard,
+                    reply_markup=get_main_menu_keyboard(),
                 )
             else:
                 await message.answer("⛔ У вас нет доступа к этому боту")
@@ -133,6 +134,7 @@ if __name__ == "__main__":
 
     # Подключаем роутеры
     dp.include_router(buttons_router)
+    dp.include_router(requests_router)
 
     # Регистрация обработчиков
     register_chat_member_handlers(dp, bot, gsheets)
