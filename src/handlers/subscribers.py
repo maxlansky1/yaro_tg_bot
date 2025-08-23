@@ -15,7 +15,9 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def create_user_data_dict(user, invite=None, subscription_type="Direct Join"):
+def create_user_data_dict(
+    user, invite=None, subscription_type="Direct Join", channel_title=None
+):
     """Создает стандартный словарь данных пользователя для Google Sheets"""
     return {
         "id": user.id,
@@ -25,6 +27,7 @@ def create_user_data_dict(user, invite=None, subscription_type="Direct Join"):
         "Имя ссылки": html.escape(invite.name) if invite and invite.name else "",
         "Ссылка": invite.invite_link if invite and invite.invite_link else "",
         "Подписка/отписка": subscription_type,
+        "Название канала": channel_title if channel_title else "",
         "Дата": datetime.now(timezone.utc)
         .replace(microsecond=0)
         .strftime("%d.%m.%Y %H:%M:%S"),
@@ -43,16 +46,21 @@ async def handle_new_member(
         ):
             user = update.new_chat_member.user
             invite = update.invite_link
+            channel_title = (
+                update.chat.title if update.chat and update.chat.title else None
+            )
 
             # Определяем тип подписки
             subscription_type = "✅" if invite else "Direct Join"
 
-            user_data = create_user_data_dict(user, invite, subscription_type)
+            user_data = create_user_data_dict(
+                user, invite, subscription_type, channel_title
+            )
             success = gsheets.add_subscriber(user_data)
 
             if success:
                 logger.info(
-                    f"Новый подписчик добавлен в таблицу: {user.id} via {subscription_type}"
+                    f"Новый подписчик добавлен в таблицу: {user.id} via {subscription_type} в канал {channel_title or 'Unknown'}"
                 )
             else:
                 logger.error(
@@ -76,9 +84,12 @@ async def handle_unsubscribed_member(
             ChatMemberStatus.KICKED,
         ]:
             user = update.old_chat_member.user
+            channel_title = (
+                update.chat.title if update.chat and update.chat.title else None
+            )
 
             # Для отписки invite link не применим
-            user_data = create_user_data_dict(user, None, "❌")
+            user_data = create_user_data_dict(user, None, "❌", channel_title)
             success = gsheets.add_subscriber(user_data)
 
             if success:
@@ -88,7 +99,7 @@ async def handle_unsubscribed_member(
                     else "забанен"
                 )
                 logger.info(
-                    f"Пользователь {user.id} {status_str}, запись добавлена в таблицу"
+                    f"Пользователь {user.id} {status_str} от канала {channel_title or 'Unknown'}, запись добавлена в таблицу"
                 )
             else:
                 logger.error(
@@ -109,7 +120,10 @@ async def handle_chat_join_request(
 
         # Создаем данные для сохранения в таблицу заявок
         request_data = create_user_data_dict(
-            user, update.invite_link, "Заявка на вступление"
+            user,
+            update.invite_link,
+            "Заявка на вступление",
+            chat.title if chat and chat.title else None,
         )
         request_data.update(
             {
@@ -122,12 +136,19 @@ async def handle_chat_join_request(
         success = gsheets.add_join_request(request_data)
 
         if success:
+            channel_name = (
+                chat.title
+                if chat and chat.title
+                else str(chat.id)
+                if chat
+                else "Unknown"
+            )
             logger.info(
-                f"Новая заявка на вступление сохранена в таблицу: {user.id} в канал {chat.title}"
+                f"Новая заявка на вступление сохранена в таблицу: {user.id} в канал {channel_name}"
             )
         else:
             logger.error(
-                f"Не удалось сохранить заявку в таблицу: {user.id} в канал {chat.title}"
+                f"Не удалось сохранить заявку в таблицу: {user.id} в канал {chat.title if chat and chat.title else 'Unknown'}"
             )
 
     except Exception as e:

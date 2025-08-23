@@ -147,8 +147,6 @@ class GoogleSheetsManager:
 
             # Заголовки для листа заявок (расширяем стандартные заголовки)
             request_headers = list(HEADERS) + ["channel_id", "channel_name"]
-
-            # Явно создаем заголовки для листа заявок
             self.ensure_headers(request_headers, JOIN_REQUESTS_SHEET_NAME)
 
             # Формируем строку данных
@@ -157,7 +155,10 @@ class GoogleSheetsManager:
             if not self._safe_append_row(sheet, row):
                 raise ValueError("Не удалось добавить строку заявки")
 
-            logger.info(f"Заявка добавлена в таблицу: {request_data.get('id')}")
+            user_id = request_data.get("id", "Unknown")
+            channel_name = request_data.get("Название канала", "Unknown")
+
+            logger.info(f"Заявка добавлена в таблицу: {user_id} в канал {channel_name}")
             return True
 
         except Exception as e:
