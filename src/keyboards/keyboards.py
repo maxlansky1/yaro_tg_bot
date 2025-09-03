@@ -1,3 +1,5 @@
+from typing import Dict, List
+
 from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
@@ -10,6 +12,10 @@ class CallbackData:
     ACCEPT_ALL = "accept_all_requests"
     DECLINE_ALL = "decline_all_requests"
     BACK_TO_CHANNELS = "back_to_channel_selection"
+    STATS_CHANNEL = "stats_channel"
+    STATS_LINK = "stats_link"
+    BACK_TO_MAIN_STATS = "back_to_main_stats"
+    BACK_TO_CHANNEL_STATS = "back_to_channel_stats"
 
 
 # Универсальная функция для кнопки "назад"
@@ -26,7 +32,8 @@ def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
     builder.button(text="Создать ссылку")
     builder.button(text="Открыть Google Таблицу")
     builder.button(text="Управление заявками")
-    builder.adjust(2, 1)  # 2 кнопки в первом ряду, 1 во втором
+    builder.button(text="Управление заявками")
+    builder.adjust(2, 2)  # 2 кнопки в первом ряду, 1 во втором
     return builder.as_markup(resize_keyboard=True, one_time_keyboard=False)
 
 
@@ -57,6 +64,28 @@ async def get_channel_selection_keyboard(
     return builder.as_markup()
 
 
+async def get_channel_statistics_keyboard(
+    bot: Bot, callback_prefix: str = "stats_channel"
+) -> InlineKeyboardMarkup:
+    """Возвращает inline-клавиатуру с выбором каналов для статистики"""
+    builder = InlineKeyboardBuilder()
+
+    for channel_id in Config.TELEGRAM_CHANNEL_IDS:
+        try:
+            chat = await bot.get_chat(channel_id)
+            channel_title = chat.title or f"Канал {channel_id}"
+        except Exception:
+            channel_title = f"Канал {channel_id}"
+
+        builder.button(
+            text=channel_title, callback_data=f"{callback_prefix}:{channel_id}"
+        )
+
+    builder.button(text="↩️ Назад", callback_data="back_to_main_stats")
+    builder.adjust(1)
+    return builder.as_markup()
+
+
 def get_request_management_keyboard() -> InlineKeyboardMarkup:
     """Возвращает клавиатуру для управления заявками"""
     builder = InlineKeyboardBuilder()
@@ -64,6 +93,23 @@ def get_request_management_keyboard() -> InlineKeyboardMarkup:
     builder.button(text="❌ Отклонить все", callback_data="decline_all_requests")
     builder.button(text="↩️ Назад", callback_data="back_to_channel_selection")
     builder.adjust(2, 1)  # 2 кнопки в первом ряду, 1 во втором
+    return builder.as_markup()
+
+
+def get_links_statistics_keyboard(
+    links: List[Dict], callback_prefix: str = "stats_link"
+) -> InlineKeyboardMarkup:
+    """Возвращает inline-клавиатуру с выбором ссылок для статистики"""
+    builder = InlineKeyboardBuilder()
+
+    for i, link in enumerate(links[:15], 1):  # Ограничиваем 15 ссылками
+        link_name = link.get("Имя ссылки", f"Ссылка {i}")
+        # Используем имя ссылки как идентификатор (можно также использовать саму ссылку)
+        callback_data = f"{callback_prefix}:{link_name}"
+        builder.button(text=link_name, callback_data=callback_data)
+
+    builder.button(text="↩️ Назад", callback_data="back_to_channel_stats")
+    builder.adjust(1)
     return builder.as_markup()
 
 

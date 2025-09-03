@@ -18,3 +18,12 @@ class RequestManagementStates(StatesGroup):
         State()
     )  # Ожидаем выбор канала для управления заявками
     managing_requests = State()  # Состояние обработки заявок
+
+
+class StatisticsStates(StatesGroup):
+    """Состояния просмотра статистики по подпискам"""
+
+    waiting_for_channel_selection = State()  # Ожидаем выбор канала для статистики
+    waiting_for_link_selection = (
+        State()
+    )  # Ожидаем выбор ссылки для просмотра подписчиков

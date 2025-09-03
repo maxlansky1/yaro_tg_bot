@@ -24,6 +24,11 @@ from handlers.links import (
     process_link_name,
 )
 from handlers.requests import requests_router
+from handlers.statistics import (
+    cmd_statistics,
+    handle_channel_selected_for_stats,
+    handle_link_selected_for_stats,
+)
 from handlers.subscribers import (
     handle_chat_join_request,
     handle_new_member,
@@ -134,6 +139,32 @@ def register_command_handlers(dp: Dispatcher):
     )
     async def handle_approval_selection(callback: CallbackQuery, state: FSMContext):
         await handle_approval_type_selected(callback, state)
+
+    # Хэндлеры статистики по подпискам
+    @dp.message(F.text == "📊 Статистика по подпискам")
+    async def handle_statistics_button(message: Message, state: FSMContext):
+        await cmd_statistics(message, message.bot, state)
+
+    @dp.callback_query(F.data.startswith("stats_channel:"))
+    async def handle_stats_channel_selection(
+        callback: CallbackQuery, state: FSMContext
+    ):
+        await handle_channel_selected_for_stats(
+            callback, state, callback.bot, callback.bot.gsheets
+        )
+
+    @dp.callback_query(F.data.in_(["back_to_main_stats", "back_to_channel_stats"]))
+    async def handle_stats_navigation(callback: CallbackQuery, state: FSMContext):
+        if callback.data == "back_to_channel_stats":
+            await handle_channel_selected_for_stats(
+                callback, state, callback.bot, callback.bot.gsheets
+            )
+        else:
+            await handle_link_selected_for_stats(callback, state, callback.bot.gsheets)
+
+    @dp.callback_query(F.data.startswith("stats_link:"))
+    async def handle_stats_link_selection(callback: CallbackQuery, state: FSMContext):
+        await handle_link_selected_for_stats(callback, state, callback.bot.gsheets)
 
     logger.info("✅ Команды зарегистрированы")
 

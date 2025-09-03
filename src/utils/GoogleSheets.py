@@ -322,6 +322,59 @@ class GoogleSheetsManager:
             logger.error(f"Ошибка при получении ссылок: {e}")
             return []
 
+    def get_invite_links_for_channel(self, channel_name: str) -> List[Dict]:
+        """Получает все ссылки для конкретного канала"""
+        try:
+            sheet = self._get_sheet(INVITE_LINKS_SHEET_NAME)
+            all_values = sheet.get_all_values()
+
+            if not all_values or len(all_values) <= 1:
+                return []
+
+            headers = all_values[0]
+            rows = [dict(zip(headers, row)) for row in all_values[1:]]
+
+            # Фильтруем по имени канала
+            channel_links = [
+                row
+                for row in rows
+                if row.get("Имя канала", "").strip() == channel_name.strip()
+            ]
+
+            return channel_links
+        except Exception as e:
+            logger.error(f"Ошибка при получении ссылок для канала {channel_name}: {e}")
+            return []
+
+    def get_subscribers_for_link(self, link_identifier: str) -> List[Dict]:
+        """Получает подписчиков по ссылке или её имени"""
+        try:
+            sheet = self._get_sheet(MAIN_SHEET_NAME)
+            all_values = sheet.get_all_values()
+
+            if not all_values or len(all_values) <= 1:
+                return []
+
+            headers = all_values[0]
+            rows = [dict(zip(headers, row)) for row in all_values[1:]]
+
+            # Фильтруем по ссылке или имени ссылки
+            subscribers = [
+                row
+                for row in rows
+                if (
+                    row.get("Ссылка", "").strip() == link_identifier.strip()
+                    or row.get("Имя ссылки", "").strip() == link_identifier.strip()
+                )
+            ]
+
+            return subscribers
+        except Exception as e:
+            logger.error(
+                f"Ошибка при получении подписчиков для ссылки {link_identifier}: {e}"
+            )
+            return []
+
     def find_link_row(self, link: str) -> Optional[Dict]:
         """Находит строку в таблице по ссылке"""
         try:
