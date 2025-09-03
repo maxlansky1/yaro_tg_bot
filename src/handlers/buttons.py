@@ -48,7 +48,7 @@ async def handle_open_sheet_button(message: Message):
             return
 
         sheet_url = (
-            f"https://docs.google.com/spreadsheets/d/ {Config.SPREADSHEET_ID}/edit"
+            f"https://docs.google.com/spreadsheets/d/{Config.SPREADSHEET_ID}/edit"
         )
         await message.answer(
             f"📎 [Открыть Google Таблицу]({sheet_url})", parse_mode="Markdown"
