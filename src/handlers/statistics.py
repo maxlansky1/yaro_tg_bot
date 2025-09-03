@@ -178,7 +178,7 @@ def format_subscribers_list(subscribers: List[Dict]) -> str:
 
         if username and username != "None":
             # Делаем username кликабельным
-            formatted_list.append(f"{i}. @{escape(username)}")
+            formatted_list.append(f"{i}. {escape(username)}")
         elif user_id and user_id != "None":
             formatted_list.append(f"{i}. ID: {escape(str(user_id))}")
         else:
