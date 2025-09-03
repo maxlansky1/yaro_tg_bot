@@ -32,7 +32,7 @@ def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
     builder.button(text="Создать ссылку")
     builder.button(text="Открыть Google Таблицу")
     builder.button(text="Управление заявками")
-    builder.button(text="Подписчики")
+    builder.button(text="📊 Статистика по подпискам")
     builder.adjust(2, 2)  # 2 кнопки в первом ряду, 1 во втором
     return builder.as_markup(resize_keyboard=True, one_time_keyboard=False)
 
