@@ -15,6 +15,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from configs.config import Config
+from keyboards.keyboards import get_approval_type_keyboard
 from states.state import CreateLinkStates
 from utils.GoogleSheets import GoogleSheetsManager
 from utils.logger import get_logger
@@ -70,22 +71,58 @@ async def cmd_create_link(message: Message, bot: Bot, state: FSMContext):
 async def handle_channel_selected(callback: CallbackQuery, state: FSMContext):
     """
     Обработчик выбора канала через inline-кнопку.
-
-    Сохраняет выбранный канал в состоянии и запрашивает имя ссылки.
+    Сохраняет выбранный канал в состоянии и запрашивает тип одобрения.
     """
     try:
         channel_id = callback.data.split("select_channel:")[1]
         await state.update_data(selected_channel=channel_id)
-        await state.set_state(CreateLinkStates.waiting_for_link_name)
+        await state.set_state(CreateLinkStates.waiting_for_approval_type)
 
         await callback.message.edit_text(
-            "📝 Введите имя для новой пригласительной ссылки:"
+            "⚙️ Выберите тип пригласительной ссылки:",
+            reply_markup=get_approval_type_keyboard(),
         )
         await callback.answer()
 
     except Exception as e:
         logger.error(f"Ошибка при обработке выбора канала: {e}", exc_info=True)
         await callback.answer("⚠️ Ошибка при выборе канала", show_alert=True)
+
+
+async def handle_approval_type_selected(callback: CallbackQuery, state: FSMContext):
+    """
+    Обработчик выбора типа одобрения.
+    Сохраняет выбор и запрашивает имя ссылки.
+    """
+    try:
+        if callback.data == "back_to_channel_selection":
+            # Возвращаем к выбору канала
+            from keyboards.keyboards import get_channel_selection_keyboard
+
+            kb = await get_channel_selection_keyboard(callback.bot)
+            await state.set_state(CreateLinkStates.waiting_for_channel)
+            await callback.message.edit_text(
+                "📢 Выберите канал, для которого создать ссылку:", reply_markup=kb
+            )
+            await callback.answer()
+            return
+
+        # Сохраняем тип одобрения
+        approval_required = callback.data == "approval_required"
+        await state.update_data(approval_required=approval_required)
+        await state.set_state(CreateLinkStates.waiting_for_link_name)
+
+        approval_text = (
+            "с одобрением администратора" if approval_required else "без одобрения"
+        )
+        await callback.message.edit_text(
+            f"📝 Введите имя для новой пригласительной ссылки ({approval_text}):"
+        )
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"Ошибка при обработке типа одобрения: {e}", exc_info=True)
+        await callback.answer("⚠️ Ошибка при выборе типа одобрения", show_alert=True)
 
 
 async def process_link_name(
@@ -105,6 +142,8 @@ async def process_link_name(
 
         data = await state.get_data()
         channel_id = data.get("selected_channel")
+        approval_required = data.get("approval_required", True)
+
         if not channel_id:
             await message.answer("⚠️ Канал не выбран. Пожалуйста, начните заново.")
             return
@@ -121,7 +160,7 @@ async def process_link_name(
             chat_id=channel_id,  # id канала
             name=campaign_name,  # имя ссылки
             expire_date=expire_date,  # срок действия
-            creates_join_request=True,  # нужно ли одобрение админа для вступления
+            creates_join_request=approval_required,  # нужно ли одобрение админа для вступления
         )
 
         # Подготавливаем данные для таблицы
@@ -138,6 +177,7 @@ async def process_link_name(
         gsheets.add_invite_link(link_data)
 
         # Формируем и отправляем ответ
+        approval_text = "с одобрением" if approval_required else "без одобрения"
         response = (
             f"🔗 <b>Новая ссылка:</b>\n\n"
             f"📛 <b>Название:</b> <code>{escape(campaign_name)}</code>\n"
@@ -146,7 +186,7 @@ async def process_link_name(
         )
         await message.answer(response)
         logger.info(
-            f"Создана ссылка для канала {channel_id} ({channel_name}): {campaign_name}"
+            f"Создана ссылка для канала {channel_id} ({channel_name}): {campaign_name} ({approval_text})"
         )
 
     except Exception as e:

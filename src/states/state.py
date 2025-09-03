@@ -8,6 +8,7 @@ class CreateLinkStates(StatesGroup):
 
     waiting_for_channel = State()  # Ожидаем выбор канала
     waiting_for_link_name = State()  # Ожидаем название ссылки
+    waiting_for_approval_type = State()  # Ожидаем выбор типа пригласительной ссылки
 
 
 class RequestManagementStates(StatesGroup):

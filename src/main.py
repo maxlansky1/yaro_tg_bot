@@ -14,11 +14,15 @@ from aiogram.enums import ChatMemberStatus, ParseMode
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
 from configs.config import Config
 from handlers.buttons import buttons_router
-from handlers.links import cmd_create_link, process_link_name
+from handlers.links import (
+    cmd_create_link,
+    handle_approval_type_selected,
+    process_link_name,
+)
 from handlers.requests import requests_router
 from handlers.subscribers import (
     handle_chat_join_request,
@@ -122,6 +126,14 @@ def register_command_handlers(dp: Dispatcher):
     @dp.message(CreateLinkStates.waiting_for_link_name)
     async def handle_link_name_input(message: Message, state: FSMContext):
         await process_link_name(message, state, message.bot, message.bot.gsheets)
+
+    @dp.callback_query(
+        F.data.in_(
+            ["approval_required", "approval_not_required", "back_to_channel_selection"]
+        )
+    )
+    async def handle_approval_selection(callback: CallbackQuery, state: FSMContext):
+        await handle_approval_type_selected(callback, state)
 
     logger.info("✅ Команды зарегистрированы")
 

@@ -5,13 +5,27 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from configs.config import Config
 
 
+class CallbackData:
+    SELECT_CHANNEL = "select_channel"
+    ACCEPT_ALL = "accept_all_requests"
+    DECLINE_ALL = "decline_all_requests"
+    BACK_TO_CHANNELS = "back_to_channel_selection"
+
+
+# Универсальная функция для кнопки "назад"
+def get_back_button(callback_data: str, text: str = "↩️ Назад") -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text=text, callback_data=callback_data)
+    return builder.as_markup()
+
+
 # === Основные текстовые кнопки ===
 def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
     """Возвращает основную клавиатуру с кнопками"""
     builder = ReplyKeyboardBuilder()
     builder.button(text="Создать ссылку")
     builder.button(text="Открыть Google Таблицу")
-    builder.button(text="Управление заявками")  # Новая кнопка
+    builder.button(text="Управление заявками")
     builder.adjust(2, 1)  # 2 кнопки в первом ряду, 1 во втором
     return builder.as_markup(resize_keyboard=True, one_time_keyboard=False)
 
@@ -59,4 +73,14 @@ def get_back_to_channels_keyboard() -> InlineKeyboardMarkup:
     builder.button(
         text="↩️ Выбрать другой канал", callback_data="back_to_channel_selection"
     )
+    return builder.as_markup()
+
+
+def get_approval_type_keyboard() -> InlineKeyboardMarkup:
+    """Возвращает клавиатуру для выбора типа одобрения"""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ С одобрением", callback_data="approval_required")
+    builder.button(text="❌ Без одобрения", callback_data="approval_not_required")
+    builder.button(text="↩️ Назад", callback_data="back_to_channel_selection")
+    builder.adjust(2, 1)
     return builder.as_markup()
